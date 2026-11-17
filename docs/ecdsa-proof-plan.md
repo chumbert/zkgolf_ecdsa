@@ -6,21 +6,13 @@ This branch (`mistral-plan`) is created from `origin/circuit_baseline` (commit
 checked out; where older context is needed it is read via
 `git show origin/circuit_baseline:<path>` or the refs already present locally.
 
-Two tracks are planned. **Plan B is the primary target** (it is the only one
-that reaches the 9.5k cost goal); Track A is kept as an appendix because it
-shares most of the infrastructure.
-
-- **Plan B (primary)**: prove the projected-signature circuit
+**Plan B is the target**: prove the projected-signature circuit
   `Baseline.Projected.Offset.main`, measured score **9,267** (4,631 allocations
   + 4,636 R1CS rows) — under the 9,500 ceiling — against the
   representation-independent relation `RepresentationIndependentLF`
   (`[E]G + [r]Q + [n-s]R = infinity ∧ R.x = r`, retaining Longfellow's
   restrictions). Requires a new projected-signature challenge instance; the
   trusted pointwise instance stays untouched.
-- **Track A (appendix)**: prove the pointwise circuit `Baseline.main`
-  (23,790) / `Optimized.main` (19,630) under the pinned contract
-  `Spec = ValidEcdsaWitness` over the 1037-field `Input`. Cannot reach 9.5k
-  (the 1034 witness fields must be constrained point by point).
 
 Toolchain: Lean `v4.34.0`; deps pinned by this branch's `lake-manifest.json`
 (clean @ `93c9d1ef…`, mathlib @ `5ed29652…`). Axiom hygiene: every proved
@@ -187,86 +179,4 @@ B1.1 ─ B1.2 ─┬─ B2.1 ─ B2.2 (checkpoint) ─┬─ B3.1..B3.5 ─ B4.1
 
 Biggest risks: (1) B2.2 witness computability from 5 inputs — fallback widens
 `Input` (score-neutral) at the price of a contract change; (2) B4.1 kernel cost
-of the 256-step induction.
-
----
-
-# Appendix: Track A — prove the pointwise circuit under the pinned contract
-
-Target: `Baseline.main` (`Baseline/Circuit.lean`, score 23,790 = 11,375 +
-12,415) or `Optimized.main` (`Baseline/Optimized.lean`, 19,630), under the
-unchanged trusted contract of `Challenge/Instances/ECDSA_P256_Digest/Challenge.lean`
-(`Spec input () data = ValidEcdsaWitness (witness input) {pkX,pkY} digest n params`,
-`Input` = 1037 field elements: 3 statement + 1034 source-witness).
-
-Obligations: the seven template theorems (`elaborated`, `soundness`,
-`completeness`, `mainCost`, `isR1CS`, `witgenIsIR`, `computableWitness`,
-`requirementsChannelsLawful`).
-
-## A1. Setup
-Create the work branch from `origin/circuit_baseline` only; `lake build`,
-`lake exe baseline --count-only` (must print 11,375 / 12,415 / 23,790 / 0
-violations), `lake exe baseline` (252-vector differential test green),
-`python3 scripts/check_axioms.py`. Add the `Proofs/` skeleton.
-
-## A2. Lowering-semantics infrastructure (parallel)
-- `Proofs/Semantics.lean`: generic lemmas for `mat`/`mm`/`pm`/`assertZeroLazy`/
-  `flat`/`isProd` (`Baseline/Circuit.lean`): `mat e` returns an affine expression
-  and, under `Operations.Requirements env`, its result `r` satisfies
-  `r.eval env = e.eval env`; `assertZeroLazy e` + Requirements + constraints ⇒
-  `e.eval env = 0`; bind and `for i in [0:256]` (constant-length loop) plumbing;
-  `Requirements`/`ConstraintsHold.Soundness` extraction helpers; `toFlat`
-  bridges.
-
-## A3. Algebraic gadget equivalence (parallel)
-- Circuit `addE`/`doubleE` vs `EC.lean` `_root_.addE`/`doubleE`: coordinatewise
-  `ring` proofs after extracting the `mm`-wire equations (verify first; report,
-  don't patch, any mismatch).
-- Lagrange mux (`Proofs/Mux.lean`): `lagrangeBasis` interpolation at
-  `x = 2v-7` gives `δ_{i,v}` (constant tables by `decide`/`norm_num` on `ZMod p`);
-  hence `muxEval (muxCoeffs basis8 arr) xl = arr[v]`; range polynomial
-  `muxEval cV xl = ∏(bp - (2i-7))` ⇒ `bi_i ∈ 0..7` (field zero-product property)
-  ⇒ `val3 bi_i` well-defined (`val3_cast_eq`/`cast_val3_eq` in
-  `EcdsaCircuit.lean`).
-- Scalar reconstruction: `est/rst/sst` folds = `reconstructE/R/S (bi.map val3)`
-  (`Nat.lean:218-224`) by induction over the 256 steps.
-- `ltReduce` correctness (`Proofs/Comparator.lean`): semantic spec + induction
-  over the tree; `ltR = 1` ⇒ `natR < n` (and `natS < n`); bits boolean via the
-  mux lemma. (`OptimizationLemmas.lean` covers only the optimized comparator.)
-- Wrappers: `pointEquality` ⇒ `IsPointEquality`; `isOnCurve`; inverses;
-  4× `addE` + `pointEquality` ⇒ `ValidPreComputationExact`.
-
-## A4. The 256-step loop (one focused task)
-Induction on `List.range 256`: invariant connecting `(ax,ay,az)` and the
-`intX/intY/intZ` wires to `EcdsaLoopConstraintsF` / `ecdsaLoopResultF`, with the
-`i = 255` special case (`assertZeroLazy nx/nz` ⇒ final `X = 0 ∧ Z = 0`). Uses
-`EcdsaLoopConstraintsF_cast_eq`, `muxPointF_cast_eq`.
-
-## A5. Assembly
-`main := fun inp => Baseline.main inp >>= fun _ => pure (unit output)`.
-Soundness: assemble all `ValidEcdsaWitness` conjuncts (lengths are `rfl` from
-the `Vector` fields). Completeness: spec ⇒ default witnesses satisfy all
-asserts, using the vendored existence lemmas in `Ecdsa.lean` (`exists_bi`,
-`exists_loop_witness`, `exists_pre_computation`, `ecdsa_algebraic_equivalence`).
-
-## A6. Cost & structure (parallel)
-- `mainCost` = `⟨11375, 12415⟩` (or `⟨9296, 10334⟩` for `Optimized.main`) via
-  `CostIs.bind`/per-gadget counts; no whole-circuit `decide`, no
-  `native_decide`.
-- `isR1CS`: `mat`-emitted asserts are `.mul a' b' - w` with `a' b'` affine;
-  `assertZeroLazy` keeps ≤ 1 product; `assertZero (muxEval cV xl)` has all-constant
-  coefficients; compose via `operationsIsR1CS` append lemmas.
-- `witgenIsIR` (all `witnessField`), `computableWitness` (program-order
-  allocation), `requirementsChannelsLawful` + `elaborated` (structural).
-
-## A7. Packaging & audit
-Seven theorems with the exact template types; `#print axioms` = the three
-standard axioms; `scripts/check_axioms.py`; differential suite green;
-`Proofs/README.md`.
-
-## Track A dependency graph
-
-```
-A1 ─ A2 ─┬─ A3 gadgets ─ A4 loop ─ A5 assembly ─ A7
-        └─ A6 cost/structure ────────────────────┘
-```
+ of the 256-step induction.
