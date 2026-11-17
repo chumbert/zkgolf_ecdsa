@@ -1,5 +1,6 @@
 import Solution.Projected.Circuit
 import Baseline.Check
+import Baseline.Projected.Offset
 import Lean
 
 /-! Executable diagnostics for the proof-friendly projected circuit.
@@ -83,6 +84,17 @@ def retryWitness : Option OldInput := do
   let s := ((1+3*rx.val) * ((n+1)/2)) % n
   Baseline.Check.buildWitness (bytes32 qx.val ++ bytes32 qy.val)
     (bytes32 1) (bytes32 rx.val ++ bytes32 s)
+
+/-- Executable check that the literal constant tables equal the experimental
+circuit's computed tables. -/
+def constantsCheck : IO Bool := do
+  let tables := fixedTables
+  let ref := Baseline.Projected.Offset.fixedTables
+  let mut ok := tables.size == ref.size && fixedShift == Baseline.Projected.Offset.fixedShift
+  for i in [0:128] do
+    for d in [0:4] do
+      ok := ok && (tables.getD i #[]).getD d (0,0) == (ref.getD i #[]).getD d (0,0)
+  return ok
 
 end Solution.Projected.Check
 
