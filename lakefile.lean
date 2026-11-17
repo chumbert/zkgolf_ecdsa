@@ -17,3 +17,8 @@ lean_lib ECDSA where
 
 lean_exe projected where
   root := `Baseline.Projected.Main
+
+lean_lib Solution.Projected
+
+lean_exe projected2 where
+  root := `Solution.Projected.Main
