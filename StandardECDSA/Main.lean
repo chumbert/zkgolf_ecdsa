@@ -59,6 +59,8 @@ import StandardECDSA.Math.AffineBridge
 import StandardECDSA.Phases.FixedBase
 import StandardECDSA.Phases.ShiftedTables
 import StandardECDSA.Phases.JointLadder
+import StandardECDSA.Phases.Cost
+import StandardECDSA.Phases.Semantics
 
 namespace StandardECDSA
 
