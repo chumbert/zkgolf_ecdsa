@@ -46,17 +46,19 @@ def mux8 (b0 b1 b2 : E) (v : List E) : C E := do
   let m1 ← sel b1 l2 l3
   sel b2 m0 m1
 
+/-- The affine form `muxConst4` uses for one coordinate, given the four table
+entries `v0 … v3`, the two selector bits and their shared product. -/
+def muxConst4Coord (v0 v1 v2 v3 : Fp) (b0 b1 b01 : E) : E :=
+  cst v0 + sc (v1 - v0) b0 + sc (v2 - v0) b1 + sc (v3 - v2 - v1 + v0) b01
+
 /-- Constant four-way point mux; one shared bit product for both coordinates.
 The table is a fixed-size `Array` of four entries, so no unchecked default
 participates in semantic correctness. -/
 def muxConst4 (b0 b1 : E) (tab : Array (Fp × Fp)) : C Pt := do
   let b01 ← mm b0 b1
   let coord (get : Fp × Fp → Fp) : E :=
-    let v0 := get (tab.getD 0 (0, 0))
-    let v1 := get (tab.getD 1 (0, 0))
-    let v2 := get (tab.getD 2 (0, 0))
-    let v3 := get (tab.getD 3 (0, 0))
-    cst v0 + sc (v1 - v0) b0 + sc (v2 - v0) b1 + sc (v3 - v2 - v1 + v0) b01
+    muxConst4Coord (get (tab.getD 0 (0, 0))) (get (tab.getD 1 (0, 0)))
+      (get (tab.getD 2 (0, 0))) (get (tab.getD 3 (0, 0))) b0 b1 b01
   pure (coord Prod.fst, coord Prod.snd)
 
 /-- Four-way variable point mux, indexed by `b0 + 2*b1`. -/
