@@ -17,3 +17,5 @@ lean_exe baselineCheck where
   root := `Baseline.Check
 
 lean_lib Solution
+
+lean_lib StandardECDSA
