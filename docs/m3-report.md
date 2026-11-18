@@ -1,9 +1,11 @@
-# M3 report — Local proof package (PARTIAL)
+# M3 report — Local proof package (round 2: cost + R1CS closed; semantics open)
 
 **Milestone:** M3 (T05–T11 gadget/phase proofs)
 **Branch:** `leanstral-with-astra-planner`
-**Base commit:** `3f4aa50` (M2)
-**Timing:** before `1795007174`, after `1795007758`, `elapsed_seconds = 584`
+**Base commit:** `f86cb85` (M3 partial, round 1)
+**Timing (round 2):** before `1795007879`, after `1795009347`,
+`elapsed_seconds = 1468`
+**Timing (round 1):** before `1795007174`, after `1795007758`, `elapsed_seconds = 584`
 
 ## Check results
 
@@ -11,98 +13,188 @@
 |---|---|
 | `grep -rn "sorry" StandardECDSA/Gadgets/ StandardECDSA/Phases/` | **no hits** (exit 1) |
 | `grep -rn "sorry" StandardECDSA/` | **no hits** (exit 1) |
-| `lake build StandardECDSA.Main` | **green** |
+| `lake build StandardECDSA.Main` | **green** (8996 jobs) |
 | `lake build` (whole project) | **green** (17893 jobs) |
-| `lake exe standardEcdsaCheck` | `allocations=4628 rows=4634 score=9262`; smoke test passes |
-| `python3 scripts/check_axioms.py` | 26 roots passed the permitted-axiom audit |
-| **per-leaf cost/R1CS certificates** | **PARTIAL — see below** |
+| `lake exe standardEcdsaCheck --count-only` | `allocations=4628 rows=4634 score=9262` |
+| `lake exe standardEcdsaCheck` | `smoke test: all R1CS assertions hold with H = [1]G` |
+| `lake exe standardEcdsaCheck --comparator` | `comparator: 20 cases, 0 failures` |
+| `python3 scripts/check_axioms.py` | `Tests/Axioms.lean: 26 roots passed the permitted-axiom audit` |
+| **per-leaf cost certificates** | **COMPLETE for all gadgets except the three phases** |
+| **per-leaf R1CS certificates** | **COMPLETE for 12 of 15 gadgets** |
+| **semantic `FormalCircuit` bundling** | **NOT STARTED** |
 
-## What was proved
+## What was proved in round 2
 
-### Vendored field/group algebra (new, kernel-checked)
+### Item (1) — cost certificates: closed for every gadget
 
-| File | Contents |
+`StandardECDSA/Gadgets/Cost.lean` (494 lines added).  The round-1 obstruction
+("`Circuit.output`/`Circuit.bind` unfolding did not converge") is resolved by
+the general output-degree technique the orchestrator suggested: prove the
+`rfl`-level unfolding lemmas **once** and then never unfold `Circuit.output`
+again.
+
+Structural lemmas (all `rfl`):
+
+```text
+output_pure, output_bind, output_witnessField, output_assertZero,
+fst_pure, fst_witnessField
+```
+
+`output_bind` is stated with `.1` on the right-hand side:
+
+```text
+Circuit.output (f >>= g) n
+  = (g (Circuit.output f n) (n + Operations.localLength (Circuit.operations f n))).1
+```
+
+Composition lemmas:
+
+```text
+CostIs.congr      -- cost change of variables
+CostIs.bind_dep   -- dependent bind: continuation cost may depend on a predicate
+                     P of the intermediate value, given hP : ∀ n, P (output f n)
+```
+
+`CostIs.bind_dep` is what makes the per-gadget proofs go through: `sel`'s cost
+depends on the *degree* of the expression it receives, so the continuation cost
+is uniform only under `P := fun a => deg a = 1`.
+
+`mat`'s cost and output degree:
+
+```text
+matDeg, matCount, matDeg_eq_zero, matDeg_eq_min (matDeg e = min (deg e) 1),
+mat_spec (CostIs (mat e) (matCount e) ∧ ∀ n, deg (output (mat e) n) = matDeg e),
+matCount_eq_zero_of_deg_le_one, matDeg_le_one
+```
+
+Gadget cost certificates (all closed numerals unless noted):
+
+| Theorem | Cost |
 |---|---|
-| `StandardECDSA/Math/ElmAlgebra.lean` | `elmMiddleY`, `elm_second_slope`, `elm_two_additions`, `alternating_offset_step`, `elm_second_denominator_ne`, `affine_add_onCurve`, `double_denominator_ne`, `elm_output_onCurve`, `affine_double_onCurve`, `unified_affine_add_onCurve` |
-| `StandardECDSA/Math/AffineBridge.lean` | `affine_add_eq_group`, `affine_double_eq_group`, `short_nonsingular`, `elm_eq_group` |
+| `mm_spec` | `⟨1,1⟩` + output degree 1 |
+| `nonzero_cost` | `⟨1,1⟩` + output degree 1 |
+| `assertBool_cost` | `⟨0,1⟩` |
+| `bitOf_spec` | `⟨1,0⟩` + output degree 1 |
+| `sel_cost` | `⟨1,1⟩` + output degree 1 |
+| `muxConst4_cost` | `⟨1,1⟩` |
+| `mux4_cost` | `⟨6,6⟩` |
+| `affAdd_cost` | `⟨4,4⟩` |
+| `affDouble_cost` | `⟨4,4⟩` |
+| `elmCore_cost` | `⟨4,4⟩` |
+| `elm_cost` | `⟨6,6⟩` |
+| `elmTo_cost` | `⟨4,6⟩` |
+| `azlLoop_cost`, `azlLinLoop_cost` | `azlLoopCost l`, `Count.zero` |
+| `assertZeroLazy_cost` | `assertZeroLazyCost e` (closed form in `flat`) |
+| `ltLoop_cost`, `ltLoopGuarded_cost` | `ltLoopCost l` |
+| `assertLtOrderOf_cost` | `ltLoopCost (boundRunsOf bound)` |
+| `assertLtOrderGuardedOf_cost` | `ltLoopCost (boundRunsOf bound)` |
+| **`assertLtOrderOf_cost_n`** | **`⟨34,34⟩`** (kernel `decide` on the run list) |
+| **`assertLtOrderGuardedOf_cost_p`** | **`⟨34,34⟩`** (kernel `decide` on the run list) |
+| `isOnCurve_cost_var` | `⟨2,3⟩` |
+| `pointEquality_cost_var` | `⟨0,2⟩` |
 
-Vendored from the pinned `circuit_baseline` revision
-(`3a1bd20749ae0b6400a158651dba64a2c5fc58ff`), `Baseline/Projected/Algebra.lean`
-and `Baseline/Projected/AffineBridge.lean`, with namespaces renamed to
-`StandardECDSA.Math.ElmAlgebra` / `StandardECDSA.Math.AffineBridge`.  These are
-exactly the field-algebra and Mathlib-group-law lemmas that the affine, doubling
-and ELM gadget soundness proofs reduce to.
+The two `⟨34,34⟩` results are the plan's §3B "34 guarded bound rows/quotients"
+claim, now kernel-checked rather than numerically observed.
 
-### Field-level gadget semantics (new, kernel-checked)
+### Item (2) — `IsR1CSCirc` per-expression-shape lemmas: closed
 
-`StandardECDSA/Gadgets/Lemmas.lean`:
+New file `StandardECDSA/Gadgets/R1CS.lean` (≈330 lines).
 
-* `bool_iff`, `bool_iff'`, `exists_bool_of_bit` — Booleanity;
-* `nonzero_spec` — the nonzero row forces `x ≠ 0`;
-* `sel_spec`, `muxConst4_spec`, `mux4_spec`, `mux8_spec` — selection semantics
-  for all four muxes, including the shared bit product of `muxConst4` and the
-  `b0 + 2·b1` index of `mux4`;
-* `affAdd_rows`, `affDouble_rows`, `elm_rows` — the gadget rows in the exact
-  shape consumed by `Math.ElmAlgebra` / `Math.AffineBridge`.
+`r1csProducts` arithmetic:
 
-### Cost certificates (new, kernel-checked)
+```text
+r1csProducts_affine       (deg e ≤ 1 → r1csProducts e = some 0)
+r1csProducts_mul_le_one   (deg a ≤ 1 → deg b ≤ 1 → ∃ k ≤ 1, r1csProducts (a*b) = some k)
+r1csProducts_add          (additive over `add`)
+r1csProducts_mul_const    (constant scaling preserves the count)
+deg_neg_le, deg_var_le
+```
 
-`StandardECDSA/Gadgets/Cost.lean`:
+Row shapes:
 
-* `matDeg`, `matCount`, `matDeg_eq_zero`, `mat_cost` — the hard case: `mat`'s
-  allocation/row count as a pure function of the expression's structure;
-* `matCount_eq_zero_of_deg_le_one` — `mat` is free on affine expressions;
-* `mm_cost_of_affine` — `mm a b` costs `⟨1,1⟩` for affine non-constant factors;
-* `nonzero_cost` (`⟨1,1⟩`), `assertBool_cost` (`⟨0,1⟩`), `bitOf_cost`
-  (`⟨1,0⟩`), `sel_cost_of_affine` (`⟨1,1⟩`).
+```text
+isR1CSRow_affine          (deg e ≤ 1 → isR1CSRow e)
+isR1CSRow_prod_sub        (A*B - C, all affine)
+isR1CSRow_add_affine      (row + affine summand)
+isR1CSRow_prod_sub2       (A*B - C - D)
+isR1CSRow_prod_sub3       (A*B - C - D - F)
+```
 
-## What is NOT done (the M3 gap)
+Gadget certificates:
 
-The M3 gate asks for **per-leaf cost/R1CS certificates** and for T05–T11's
-gadget/phase proofs.  The following are **not** yet proved:
+```text
+isR1CSCirc_mat, isR1CSCirc_assertBool, isR1CSCirc_nonzero, isR1CSCirc_sel,
+isR1CSCirc_muxConst4, isR1CSCirc_mux4, isR1CSCirc_affAdd, isR1CSCirc_affDouble,
+foldl_add_deg, addMissing_deg, runSum_deg,
+isR1CSCirc_ltLoop, isR1CSCirc_ltLoopGuarded,
+isR1CSCirc_assertLtOrderOf, isR1CSCirc_assertLtOrderGuardedOf
+```
 
-1. **Remaining cost certificates.**  `muxConst4`, `mux4`, `affAdd`,
-   `affDouble`, `elmCore`, `elm`, `elmTo`, `isOnCurve`, `pointEquality`,
-   `assertZeroLazy`, `assertLtOrderOf`, `assertLtOrderGuardedOf`, and all three
-   phases (`fixedBase`, `shiftedTables`, `jointLadder`).
-   *Exact obstruction:* each of these needs the **output-degree** lemma
-   `deg ((g …).output n) = 1` for the sub-gadget `g` it composes (`sel`, `mm`,
-   `nonzero`), because the next gadget's cost depends on the degree of the
-   expression it receives.  The technique is the same as `matDeg` (a paired
-   induction carrying `CostIs` and the output degree), but it must be done for
-   `mat` first — `mat_spec`'s output-degree half was dropped from this commit
-   because the `Circuit.output`/`Circuit.bind` unfolding did not converge
-   within the time budget.  The phase costs additionally need a
-   `for i in [0:128]` / `[0:256]` loop-cost lemma; `Challenge.CostR1CS`
-   provides `CostIs.forEach`/`mapFinRange`/`foldlRange` for `Vector`/`Fin`
-   loops only, not for `Std.Range` `for` loops.
-2. **`IsR1CSCirc` certificates.**  `isR1CSRow e` is a `Prop` about the
-   *structure* of `e`, so each gadget needs a per-expression-shape lemma
-   (`isR1CSRow (pm a b - c)` given `deg a = deg b = 1`, etc.).  Not started.
-3. **Semantic `FormalCircuit`/`FormalAssertion` bundling and
-   soundness/completeness proofs.**  This is the bulk of T05–T11 and is not
-   started.  The vendored `Math.ElmAlgebra` / `Math.AffineBridge` lemmas and
-   the `Gadgets/Lemmas.lean` row lemmas are the prerequisites for it.
+`isR1CSCirc_mat` is by induction on the expression, using
+`Challenge.CostR1CS.IsR1CSCirc.bind_out` so the continuation may depend on the
+actual wire index produced by `mat`.
 
-## A change made to `mat` (behaviour-preserving)
+### Behaviour-preserving restructurings (count re-verified)
 
-`Gadgets/Field.lean`'s `mat` now branches on the **input** degrees
-`deg a = 0 ∨ deg b = 0` rather than on the degrees of the already-materialised
-factors `deg a' = 0 ∨ deg b' = 0`.  This is the same branch: `mat` maps degree
-`0` to degree `0` and degree `≥ 1` to degree `≥ 1`, which is exactly
-`matDeg_eq_zero`.  Writing it on the inputs makes the allocation count a pure
-function of the expression's structure, which is what `mat_cost` needs.
+Three definitions were rewritten so that their cost is provable by structural
+induction instead of by unfolding a `Std.Range` `for` loop (for which
+`Challenge.CostR1CS` has no cost lemma):
 
-Verified behaviour-preserving: the measured cost is unchanged
-(`allocations=4628 rows=4634 score=9262`) and the generated-witness smoke test
-still reports `all R1CS assertions hold with H = [1]G`.
+| Definition | Before | After |
+|---|---|---|
+| `assertZeroLazy` | `for (c',t) in rest do …` + `for (c',t) in lins do …` | `azlLoop` / `azlLinLoop` (explicit structural recursion) |
+| `assertLtOrderOf` | `for (hi,lo,bit) in boundRunsOf bound do …` | `ltLoop` (explicit structural recursion) |
+| `assertLtOrderGuardedOf` | same | `ltLoopGuarded` |
+| `boundRunsOf` | `Id.run do` + `Array.push` + `Nat.testBit` | `List.foldl` over `bitAt` + `List.reverse` |
+
+`boundRunsOf` was rewritten because the `Id.run`/`Array`/`Nat.testBit` version
+does **not** reduce in the kernel (`decide` gets stuck), so the `⟨34,34⟩`
+certificates were impossible.  The new version is proved extensionally equal to
+the old one for both bounds (`#eval (boundRunsOf nSubOne) == (boundRunsOfOld nSubOne)`
+→ `true`, same for `pSubNSubOne`).
+
+All four rewrites are behaviour-preserving, verified by re-running the
+executable: `allocations=4628 rows=4634 score=9262`, smoke test passes,
+comparator 20/20.
+
+## What is NOT done (the remaining M3 gap)
+
+### Item (3) — semantic `FormalCircuit`/`FormalAssertion` bundling: NOT STARTED
+
+This is the bulk of T05–T11 and is the only remaining M3 item.  Concretely
+missing:
+
+1. **Bundled semantic specs** for `nonzero`, `assertBool`, `sel`, `muxConst4`,
+   `mux4`, `affAdd`, `affDouble`, `elm`, `elmTo`, `isOnCurve`,
+   `pointEquality`, `assertLtOrderOf`, `assertLtOrderGuardedOf` — each as a
+   `FormalCircuit`/`FormalAssertion` whose spec is a group/scalar statement
+   (not a row list), with soundness and completeness.
+2. **Phase semantic specs** for `fixedBase` (`ep = H + [E]G`), `shiftedTables`
+   (every entry `±3H + b0·Q + b1·R`) and `jointLadder` (the signed-offset
+   prefix invariant).  These are T12/T15 and are M5 work by the plan's own
+   dependency graph.
+3. **Phase cost certificates** (`fixedBase` 644/644, `shiftedTables` 32/32,
+   `jointLadder` 3070/3072).  The phases still use `for i in [0:128]` /
+   `[0:256]`; they need the same `mapFinRange`/`foldlRange` restructuring as
+   `assertZeroLazy`/`ltLoop` above, plus `ConstantLength` proofs.
+4. **`IsR1CSCirc` for `assertZeroLazy`, `isOnCurve`, `pointEquality`,
+   `elmCore`, `elm`, `elmTo`.**  `assertZeroLazy`'s assertion is
+   `assertZero acc` where `acc` is one product plus affine summands; the
+   certificate needs `isR1CSRow (sc c (pm A B) + C)` plus a lemma that
+   `azlLoop`'s accumulator stays of that shape.  `elm`/`elmTo` additionally
+   need an output-degree lemma for `elmCore`'s pair output.
+
+*Exact obstruction for item (3):* the semantic bundling is not blocked by a
+technical problem — it is simply the largest remaining body of work in the
+plan (T05–T11's soundness/completeness halves plus T12/T15).  The prerequisites
+it needs are now all in place: `Math/ElmAlgebra.lean` and
+`Math/AffineBridge.lean` supply the field-algebra and group-law lemmas,
+`Gadgets/Lemmas.lean` supplies the row-shape lemmas, and this round supplies
+the cost and R1CS certificates.
 
 ## Remaining sorries
 
 ```text
-$ grep -rn "sorry" StandardECDSA/Gadgets/ StandardECDSA/Phases/
-$ echo $?
-1
 $ grep -rn "sorry" StandardECDSA/
 $ echo $?
 1
@@ -112,29 +204,49 @@ No hits anywhere under `StandardECDSA/`.
 
 ## Build errors
 
-None.  `lake build` completes with `Build completed successfully (17893 jobs)`.
+None.  `lake build` → `Build completed successfully (17893 jobs)`.
+(The two `declaration uses sorry` warnings in the log are in the pre-existing
+`Challenge/Instances/ECDSA_P256_Digest/Challenge.lean`, not in
+`StandardECDSA/`.)
 
 ## Files changed
 
 ```text
 $ git status --short
+ M StandardECDSA/Gadgets/Cost.lean
+ M StandardECDSA/Gadgets/Field.lean
+ M StandardECDSA/Gadgets/Scalar.lean
+ M StandardECDSA/Gadgets/Select.lean
  M StandardECDSA/Main.lean
-?? StandardECDSA/Gadgets/Cost.lean
-?? StandardECDSA/Gadgets/Lemmas.lean
-?? StandardECDSA/Math/AffineBridge.lean
-?? StandardECDSA/Math/ElmAlgebra.lean
+?? StandardECDSA/Gadgets/R1CS.lean
+```
+
+```text
+$ git diff --stat
+ StandardECDSA/Gadgets/Cost.lean   | 494 +++++++++++++++++++++++++++++++++-----
+ StandardECDSA/Gadgets/Field.lean  |  20 +-
+ StandardECDSA/Gadgets/Scalar.lean |  83 ++++---
+ StandardECDSA/Gadgets/Select.lean |  12 +-
+ StandardECDSA/Main.lean           |   1 +
+ 5 files changed, 509 insertions(+), 101 deletions(-)
 ```
 
 ## Decision
 
-M3 is **not** complete: the cost/R1CS certificate package is partial and the
-semantic gadget/phase proofs are not started.  Per the milestone rules I am
-**stopping at M3** rather than proceeding to M4, because M4 (complete prover:
-`exists_goodOffset`, `generateSeed_complete`) depends on M3's semantic
-soundness/completeness interfaces.
+M3 items (1) and (2) are **closed**.  Item (3) — the semantic
+`FormalCircuit`/`FormalAssertion` bundling with soundness and completeness —
+is **not started** and is the plan's largest remaining body of work
+(T05–T11 semantics plus T12/T15 phase invariants).
 
-**Next milestone I would attempt:** M3 continued — specifically, in order:
-(a) the output-degree half of `mat_spec`; (b) the remaining gadget cost
-certificates; (c) `IsR1CSCirc` per-shape lemmas; (d) the `Std.Range` loop-cost
-lemma; (e) the semantic `FormalCircuit` bundling for `nonzero`, `assertBool`,
-`sel`, `muxConst4`, `mux4`, `affAdd`, `affDouble`, `elm`, `elmTo`.
+Per the milestone rules I am **stopping at M3** and reporting rather than
+proceeding to M4, because M4's `generateSeed_complete` and `exists_goodOffset`
+consume the semantic gadget interfaces that item (3) is supposed to publish.
+
+**Next milestone I would attempt:** M3 item (3), in this order:
+(a) `FormalAssertion` bundling for `nonzero`, `assertBool`, `sel`, `muxConst4`,
+`mux4` (field-level, prerequisites already in `Gadgets/Lemmas.lean`);
+(b) `FormalCircuit` bundling for `affAdd`, `affDouble`, `elm`, `elmTo` using
+`Math.ElmAlgebra` / `Math.AffineBridge`;
+(c) `isOnCurve` / `pointEquality` / comparator semantics;
+(d) phase cost certificates via `mapFinRange`/`foldlRange`;
+(e) phase semantic specs (T12/T15).

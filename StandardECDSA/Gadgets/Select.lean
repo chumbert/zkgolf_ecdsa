@@ -61,10 +61,12 @@ def muxConst4 (b0 b1 : E) (tab : Array (Fp × Fp)) : C Pt := do
 
 /-- Four-way variable point mux, indexed by `b0 + 2*b1`. -/
 def mux4 (b0 b1 : E) (p0 p1 p2 p3 : Pt) : C Pt := do
-  let coord (get : Pt → E) : C E := do
-    let a ← sel b0 (get p0) (get p1)
-    let b ← sel b0 (get p2) (get p3)
-    sel b1 a b
-  return (← coord Prod.fst, ← coord Prod.snd)
+  let ax ← sel b0 p0.1 p1.1
+  let bx ← sel b0 p2.1 p3.1
+  let x ← sel b1 ax bx
+  let ay ← sel b0 p0.2 p1.2
+  let by' ← sel b0 p2.2 p3.2
+  let y ← sel b1 ay by'
+  return (x, y)
 
 end StandardECDSA.Gadgets

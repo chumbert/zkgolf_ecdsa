@@ -45,51 +45,62 @@ Task T06 (mathematics) / T07 (circuit).
 -/
 
 import StandardECDSA.Gadgets.Select
+import StandardECDSA.Math.ConstantBounds
 
 namespace StandardECDSA.Gadgets
 
 /-- Maximal runs of equal bits of the inclusive bound `bound`, most significant
-first, as `(hi, lo, bit)` with `hi ≥ lo`. -/
-def boundRunsOf (bound : Nat) : List (Nat × Nat × Bool) := Id.run do
-  let nb := fun k => bound.testBit k
-  let mut out : Array (Nat × Nat × Bool) := #[]
-  let mut hi := 255
-  for j in [0:256] do
-    let k := 255 - j
-    if k == 0 || nb (k - 1) != nb k then
-      out := out.push (hi, k, nb k)
-      hi := k - 1
-  return out.toList
+first, as `(hi, lo, bit)` with `hi ≥ lo`.  Written with `bitAt` and `foldl` so
+that it reduces in the kernel for concrete bounds. -/
+def boundRunsOf (bound : Nat) : List (Nat × Nat × Bool) :=
+  ((List.range 256).reverse.foldl
+    (fun acc k =>
+      let b := StandardECDSA.Math.bitAt bound k
+      match acc with
+      | (hi, _, b') :: rest => if b == b' then (hi, k, b') :: rest else (k, k, b) :: acc
+      | [] => [(k, k, b)])
+    []).reverse
+
+/-- Add the missing ONE bits of the run `[lo, hi]` to `m`. -/
+def addMissing (a : Nat → E) (hi lo : Nat) (m : E) : E :=
+  (List.range (hi - lo + 1)).foldl (fun m j => m + (cst 1 - a (hi - j))) m
+
+/-- Sum of the bits of the run `[lo, hi]`. -/
+def runSum (a : Nat → E) (hi lo : Nat) : E :=
+  (List.range (hi - lo + 1)).foldl (fun s j => s + a (hi - j)) (cst 0)
+
+/-- The comparison loop: one allocation and one row per maximal zero run. -/
+def ltLoop (a : Nat → E) (missing : E) : List (Nat × Nat × Bool) → C Unit
+  | [] => pure ()
+  | (hi, lo, bit) :: rest =>
+      if bit then ltLoop a (addMissing a hi lo missing) rest
+      else do
+        let sum := runSum a hi lo
+        let quotient ← Circuit.witnessField (.mul (.expr sum) (.inv (.expr missing)))
+        Circuit.assertZero (pm missing quotient - sum)
+        ltLoop a missing rest
+
+/-- The guarded comparison loop: the first factor is `missing + (1 - guard)`. -/
+def ltLoopGuarded (a : Nat → E) (guard : E) (missing : E) :
+    List (Nat × Nat × Bool) → C Unit
+  | [] => pure ()
+  | (hi, lo, bit) :: rest =>
+      if bit then ltLoopGuarded a guard (addMissing a hi lo missing) rest
+      else do
+        let sum := runSum a hi lo
+        let factor := missing + (cst 1 - guard)
+        let quotient ← Circuit.witnessField (.mul (.expr sum) (.inv (.expr factor)))
+        Circuit.assertZero (pm factor quotient - sum)
+        ltLoopGuarded a guard missing rest
 
 /-- Assert `a ≤ bound`, given Boolean affine bits `a` (LSB first). -/
-def assertLtOrderOf (bound : Nat) (a : Nat → E) : C Unit := do
-  let mut missing : E := cst 0
-  for (hi, lo, bit) in boundRunsOf bound do
-    let len := hi - lo + 1
-    if bit then
-      for j in [0:len] do
-        missing := missing + (cst 1 - a (hi - j))
-    else
-      let sum := (List.range len).foldl
-        (fun s j => s + a (hi - j)) (cst 0)
-      let quotient ← Circuit.witnessField (.mul (.expr sum) (.inv (.expr missing)))
-      Circuit.assertZero (pm missing quotient - sum)
+def assertLtOrderOf (bound : Nat) (a : Nat → E) : C Unit :=
+  ltLoop a (cst 0) (boundRunsOf bound)
 
 /-- Assert `guard = 1 → a ≤ bound`, given Boolean affine bits `a` (LSB first)
 and a Boolean `guard`.  One allocation and one row per zero run of `bound`. -/
-def assertLtOrderGuardedOf (bound : Nat) (guard : E) (a : Nat → E) : C Unit := do
-  let mut missing : E := cst 0
-  for (hi, lo, bit) in boundRunsOf bound do
-    let len := hi - lo + 1
-    if bit then
-      for j in [0:len] do
-        missing := missing + (cst 1 - a (hi - j))
-    else
-      let sum := (List.range len).foldl
-        (fun s j => s + a (hi - j)) (cst 0)
-      let factor := missing + (cst 1 - guard)
-      let quotient ← Circuit.witnessField (.mul (.expr sum) (.inv (.expr factor)))
-      Circuit.assertZero (pm factor quotient - sum)
+def assertLtOrderGuardedOf (bound : Nat) (guard : E) (a : Nat → E) : C Unit :=
+  ltLoopGuarded a guard (cst 0) (boundRunsOf bound)
 
 /-- The P-256 group order as a field element. -/
 def nFp : Fp := (Challenge.Specs.ECDSAP256.n : Fp)

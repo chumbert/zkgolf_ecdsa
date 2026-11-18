@@ -95,6 +95,18 @@ def isProd : E → Bool
   | .mul _ _ => true
   | _ => false
 
+/-- Materialise each remaining product term and accumulate it. -/
+def azlLoop (acc : E) : List (Fp × E) → C E
+  | [] => pure acc
+  | it :: rest => do
+      let w ← mat it.2
+      azlLoop (acc + sc it.1 w) rest
+
+/-- Accumulate the linear terms; no allocation, no row. -/
+def azlLinLoop (acc : E) : List (Fp × E) → C E
+  | [] => pure acc
+  | it :: rest => azlLinLoop (acc + sc it.1 it.2) rest
+
 /-- Assert `e = 0`: one product stays in the assertion's own row, the rest get
 wires. -/
 def assertZeroLazy (e : E) : C Unit := do
@@ -106,12 +118,8 @@ def assertZeroLazy (e : E) : C Unit := do
   | (c, .mul a b) :: rest => do
       let a' ← mat a
       let b' ← mat b
-      let mut acc : E := sc c (.mul a' b')
-      for (c', t) in rest do
-        let w ← mat t
-        acc := acc + sc c' w
-      for (c', t) in lins do
-        acc := acc + sc c' t
+      let acc ← azlLoop (sc c (.mul a' b')) rest
+      let acc ← azlLinLoop acc lins
       Circuit.assertZero acc
   | _ => pure ()
 

@@ -52,6 +52,7 @@ import StandardECDSA.Gadgets.Affine
 import StandardECDSA.Gadgets.ELM
 import StandardECDSA.Gadgets.Lemmas
 import StandardECDSA.Gadgets.Cost
+import StandardECDSA.Gadgets.R1CS
 import StandardECDSA.Math.ElmAlgebra
 import StandardECDSA.Math.AffineBridge
 import StandardECDSA.Phases.FixedBase
