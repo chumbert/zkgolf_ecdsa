@@ -319,4 +319,26 @@ theorem fbStep (env : Environment Fp) (eb : Vector E 256) (Hpt : Affine.Point Wp
 
 /-! ## The fixed-base phase spec (plan §5) -/
 
+
+/-! ## The fixed-base phase: operations and output split -/
+
+/-- The operations of the fixed-base phase split into the initial shift addition
+and the 128-window fold.  This is the per-phase equation lemma that lets parents
+reason about the phase without ever unfolding the 128-iteration loop body. -/
+theorem fixedBase_ops (h : Pt) (eb : Vector E 256) (n : Nat) :
+    (fixedBase h eb).operations n
+      = (affAdd h (cst shiftX, cst (-shiftY))).operations n
+        ++ (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+              (fixedBaseBody eb fixedTables)
+              (fixedBaseBody_constantLength eb fixedTables)).operations (n + 4) := by
+  simp only [fixedBase, Circuit.operations, Circuit.output, affAdd_localLength]
+
+/-- The output of the fixed-base phase is the output of the 128-window fold. -/
+theorem fixedBase_out (h : Pt) (eb : Vector E 256) (n : Nat) :
+    (fixedBase h eb).output n
+      = (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+          (fixedBaseBody eb fixedTables)
+          (fixedBaseBody_constantLength eb fixedTables)).output (n + 4) := by
+  simp only [fixedBase, Circuit.operations, Circuit.output, affAdd_localLength]
+
 end StandardECDSA.Phases

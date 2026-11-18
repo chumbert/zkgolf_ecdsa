@@ -40,14 +40,15 @@ theorem fixedBaseBody_cost (eb : Vector E 256) (tables : Array (Array (Fp × Fp)
 /-- The fixed-base phase costs `affAdd` (4/4) plus 128 windows of 5/5. -/
 theorem fixedBase_cost (h : Pt) (eb : Vector E 256) :
     CostIs (fixedBase h eb) ⟨644, 644⟩ := by
-  have h1 : CostIs (fixedBase h eb)
-      (⟨4, 4⟩ + ⟨128 * 5, 128 * 5⟩) :=
-    CostIs.bind (affAdd_cost h _)
-      (fun ep0 => CostIs.foldlRange (m := 128) (init := ep0)
-        (body := fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
-        (constant := fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)
-        (K := ⟨5, 5⟩) (fun s i n => fixedBaseBody_cost eb _ s i n))
-  exact CostIs.congr h1 (by decide)
+  intro n
+  have hfb := CostIs.foldlRange (m := 128)
+    (init := (affAdd h (cst shiftX, cst (-shiftY)) n).1)
+    (body := fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (constant := fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)
+    (K := ⟨5, 5⟩) (fun s i n => fixedBaseBody_cost eb _ s i n)
+  simp only [fixedBase, Circuit.operations, affAdd_localLength]
+  rw [Challenge.CostR1CS.Lemmas.operationCount_append, affAdd_cost h _ n, hfb]
+  decide
 
 /-! ## Shifted tables -/
 

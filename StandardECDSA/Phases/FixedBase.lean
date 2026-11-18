@@ -46,13 +46,36 @@ def fixedBaseBody_constantLength (eb : Vector E 256) (tables : Array (Array (Fp 
       muxConst4W_localLength, affAdd_localLength,
       Circuit.localLength, Operations.append_localLength, Operations.localLength]
 
+/-- The `x`-coordinate of the fixed-base shift `S = [4·(4^128-1)/3]G`.
+
+Marked `irreducible` so that `whnf` never unfolds the 256-bit scalar
+multiplication `mulG` hidden behind it.  Without this, every defeq check that
+mentions the shift coordinates reduces `mulG` and blows the heartbeat budget. -/
+@[irreducible] def shiftX : Fp := StandardECDSA.Math.FixedTables.fixedShift.1
+
+/-- The `y`-coordinate of the fixed-base shift `S`.  See `shiftX`. -/
+@[irreducible] def shiftY : Fp := StandardECDSA.Math.FixedTables.fixedShift.2
+
+theorem shiftX_eq : shiftX = StandardECDSA.Math.FixedTables.fixedShift.1 := by
+  with_unfolding_all rfl
+
+theorem shiftY_eq : shiftY = StandardECDSA.Math.FixedTables.fixedShift.2 := by
+  with_unfolding_all rfl
+
 /-- The fixed-base phase.  `eb` holds the 256 digest bits, least significant
-first.  Returns `ep = H + [E]G` in affine coordinates. -/
-def fixedBase (h : Pt) (eb : Vector E 256) : C Pt := do
-  let shift := StandardECDSA.Math.FixedTables.fixedShift
-  let tables := StandardECDSA.Math.FixedTables.fixedTables
-  let ep0 ← affAdd h (cst shift.1, cst (-shift.2))
-  Circuit.foldlRange 128 ep0 (fixedBaseBody eb tables)
-    (fixedBaseBody_constantLength eb tables)
+first.  Returns `ep = H + [E]G` in affine coordinates.
+
+Written as an explicit lambda rather than a `do` block: with the `do` form,
+`(fixedBase h eb).operations n` only reduces after destructuring the result of
+the 128-window fold, so every defeq check that mentions the phase's operations
+has to `whnf` the whole fold and blows the heartbeat budget.  The explicit form
+reduces to a `++` in one step. -/
+def fixedBase (h : Pt) (eb : Vector E 256) : C Pt := fun n =>
+  let ops0 := (affAdd h (cst shiftX, cst (-shiftY)) n).2
+  let r := Circuit.foldlRange 128 (affAdd h (cst shiftX, cst (-shiftY)) n).1
+    (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)
+    (n + Operations.localLength ops0)
+  (r.1, ops0 ++ r.2)
 
 end StandardECDSA.Phases
