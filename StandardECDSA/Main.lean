@@ -47,6 +47,8 @@ import StandardECDSA.Math.OffsetCandidates
 import StandardECDSA.Math.SignatureEquation
 import StandardECDSA.Math.FixedTables
 import StandardECDSA.Witness.Seed
+import StandardECDSA.Witness.Generate
+import StandardECDSA.Witness.Correctness
 import StandardECDSA.Gadgets.Field
 import StandardECDSA.Gadgets.Select
 import StandardECDSA.Gadgets.Scalar
