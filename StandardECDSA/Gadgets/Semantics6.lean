@@ -280,4 +280,216 @@ theorem assertLtOrderGuardedOf_sound (bound : Nat) (guard : E) (a : Nat → E)
   simp only [aNatOf, hfin]
   simp
 
+/-! ## Completeness of the comparators -/
+
+/-- Completeness of the comparison loop. -/
+theorem ltLoop_complete (env : ProverEnvironment Fp) (av : Nat → Fp) (a : Nat → E)
+    (ha : ∀ k, Expression.eval env.toEnvironment (a k) = av k)
+    (hb : ∀ k, av k = 0 ∨ av k = 1)
+    (bound : Nat) (hpref : prefVal (boundNat bound) 256 = bound)
+    (hle : prefVal (fun j => aNatOf av (255 - j)) 256 ≤ bound) :
+    ∀ (l : List (Nat × Nat × Bool)) (p : Nat) (m : E) (n : Nat),
+      p ≤ 256 → RunsCover bound p l →
+      Expression.eval env.toEnvironment m = missAbove av bound p →
+      env.UsesLocalWitnessesCompleteness n ((ltLoop a m l).operations n) →
+      ConstraintsHold.Completeness env ((ltLoop a m l).operations n) := by
+  intro l
+  induction l with
+  | nil =>
+      intro p m n _ _ _ _
+      simp only [ltLoop, Circuit.operations, pure_snd, ConstraintsHold.Completeness,
+        Operations.forAllNoOffset]
+  | cons s rest ih =>
+      intro p m n hp hcov hm hulwc
+      obtain ⟨hi, lo, bit⟩ := s
+      simp only [RunsCover, RunsCoverB, Bool.and_eq_true, beq_iff_eq,
+        decide_eq_true_eq] at hcov
+      obtain ⟨⟨⟨hhead, hlerun⟩, hbits⟩, hrest⟩ := hcov
+      subst hhead
+      have hbits' : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = bit := by
+        intro k h1 h2
+        have hmem : k - lo ∈ List.range (hi + 1 - lo) := List.mem_range.mpr (by omega)
+        have hh := List.all_eq_true.mp hbits (k - lo) hmem
+        simp only [beq_iff_eq] at hh
+        rwa [Nat.add_sub_cancel' h1] at hh
+      unfold ltLoop at hulwc ⊢
+      by_cases hb' : bit
+      · rw [if_pos hb'] at hulwc ⊢
+        have hbT : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = true := by
+          intro k h1 h2; rw [hbits' k h1 h2]; exact hb'
+        have hmr := missRunVal_of_bits av bound hi lo true hbT
+        simp only [if_true] at hmr
+        have hsplit := missAbove_split av bound lo (hi + 1) (by omega) (by omega) (by omega)
+        simp only [Nat.add_sub_cancel] at hsplit
+        have hnew : Expression.eval env.toEnvironment (addMissing a hi lo m) =
+            missAbove av bound lo := by
+          rw [eval_addMissing env.toEnvironment av a ha, hm, hsplit, hmr,
+            add_comm (missAbove av bound (hi + 1)), add_left_inj]
+          have e1 : hi + 1 - lo = hi - lo + 1 := by omega
+          rw [e1, ← sum_range_reflect' (fun k => 1 - av k) hi lo (by omega)]
+        exact ih lo _ n (by omega) hrest hnew hulwc
+      · rw [if_neg hb'] at hulwc ⊢
+        simp only [Bool.not_eq_true] at hb'
+        simp only [bind_snd, witnessField_snd, assertZero_snd, Operations.localLength,
+          List.sum_cons, List.sum_nil, Nat.add_zero] at hulwc ⊢
+        unfold ProverEnvironment.UsesLocalWitnessesCompleteness at hulwc
+        obtain ⟨hwit, hulwc'⟩ := hulwc
+        have hbF : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = false := by
+          intro k h1 h2; rw [hbits' k h1 h2]; exact hb'
+        have hmr := missRunVal_of_bits av bound hi lo false hbF
+        simp only [if_false, Bool.false_eq_true] at hmr
+        have hsplit := missAbove_split av bound lo (hi + 1) (by omega) (by omega) (by omega)
+        simp only [Nat.add_sub_cancel] at hsplit
+        have hsame : Expression.eval env.toEnvironment m = missAbove av bound lo := by
+          rw [hm, hsplit, hmr, zero_add]
+        simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append,
+          Operations.forAllNoOffset_append, Operations.forAllNoOffset, and_true]
+        refine ⟨trivial, ?_, ?_⟩
+        · have hw := hwit ⟨0, by simp⟩
+          rw [Witgen.WitgenIR.getElem_eval_ofFExpr] at hw
+          simp only [Witgen.FExpr.eval, Nat.add_zero] at hw
+          have hsum : Expression.eval env.toEnvironment (runSum a hi lo) = runSumVal av hi lo :=
+            eval_runSum env.toEnvironment av a ha hi lo
+          simp only [circuit_norm, pm] at hw ⊢
+          by_cases hzero : Expression.eval env.toEnvironment m = 0
+          · have hz := run_bits_zero av bound (hi, lo, bit) hbits' hb' (by omega) hb
+              (by rw [← hm]; exact hzero) hpref hle
+            have hsz : runSumVal av hi lo = 0 :=
+              runSumVal_eq_zero_of_bits av hi lo (by omega) hz
+            simp [hsum, hsz, hzero]
+          · rw [hw]
+            simp only [hsum]
+            field_simp
+            ring
+        · have h := ih lo _ (n + 1) (by omega) hrest hsame hulwc'
+          simpa [Circuit.operations, ConstraintsHold.Completeness] using h
+
+/-! ## The guarded comparator: completeness on the inactive branch -/
+
+/-- The missing-bit count is at most the number of positions. -/
+theorem missNat_le (av : Nat → Fp) (bound p : Nat) : missNat av bound p ≤ 256 := by
+  have h1 : missNat av bound p ≤ ∑ _k ∈ Finset.range (256 - p), 1 := by
+    unfold missNat
+    apply Finset.sum_le_sum
+    intro k _
+    split
+    · have := aNatOf_le_one av (p + k); omega
+    · omega
+  have h2 : (∑ _k ∈ Finset.range (256 - p), 1) = 256 - p := by simp
+  omega
+
+/-- `missing + 1` never vanishes in the field: the count is a small natural. -/
+theorem missAbove_add_one_ne_zero (av : Nat → Fp) (bound p : Nat)
+    (hb : ∀ k, av k = 0 ∨ av k = 1) : missAbove av bound p + 1 ≠ 0 := by
+  rw [missAbove_cast av bound p hb]
+  intro h
+  have hle := missNat_le av bound p
+  have hprime : (257 : Nat) < circuitPrime := by decide
+  have hcast : ((missNat av bound p : Fp) + 1) = ((missNat av bound p + 1 : Nat) : Fp) := by
+    push_cast; ring
+  rw [hcast, ZMod.natCast_eq_zero_iff] at h
+  have hlt : missNat av bound p + 1 < circuitPrime := by omega
+  have h0 := Nat.eq_zero_of_dvd_of_lt h hlt
+  omega
+
+/-- Completeness of the guarded comparison loop.  The inactive branch
+(`guard = 0`) is complete because the first factor is then `missing + 1 ≥ 1`. -/
+theorem ltLoopGuarded_complete (env : ProverEnvironment Fp) (av : Nat → Fp) (a : Nat → E)
+    (ha : ∀ k, Expression.eval env.toEnvironment (a k) = av k)
+    (hb : ∀ k, av k = 0 ∨ av k = 1)
+    (bound : Nat) (guard : E)
+    (hg : Expression.eval env.toEnvironment guard = 0 ∨
+      Expression.eval env.toEnvironment guard = 1)
+    (hpref : prefVal (boundNat bound) 256 = bound)
+    (hle : Expression.eval env.toEnvironment guard = 1 →
+      prefVal (fun j => aNatOf av (255 - j)) 256 ≤ bound) :
+    ∀ (l : List (Nat × Nat × Bool)) (p : Nat) (m : E) (n : Nat),
+      p ≤ 256 → RunsCover bound p l →
+      Expression.eval env.toEnvironment m = missAbove av bound p →
+      env.UsesLocalWitnessesCompleteness n ((ltLoopGuarded a guard m l).operations n) →
+      ConstraintsHold.Completeness env ((ltLoopGuarded a guard m l).operations n) := by
+  intro l
+  induction l with
+  | nil =>
+      intro p m n _ _ _ _
+      simp only [ltLoopGuarded, Circuit.operations, pure_snd, ConstraintsHold.Completeness,
+        Operations.forAllNoOffset]
+  | cons s rest ih =>
+      intro p m n hp hcov hm hulwc
+      obtain ⟨hi, lo, bit⟩ := s
+      simp only [RunsCover, RunsCoverB, Bool.and_eq_true, beq_iff_eq,
+        decide_eq_true_eq] at hcov
+      obtain ⟨⟨⟨hhead, hlerun⟩, hbits⟩, hrest⟩ := hcov
+      subst hhead
+      have hbits' : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = bit := by
+        intro k h1 h2
+        have hmem : k - lo ∈ List.range (hi + 1 - lo) := List.mem_range.mpr (by omega)
+        have hh := List.all_eq_true.mp hbits (k - lo) hmem
+        simp only [beq_iff_eq] at hh
+        rwa [Nat.add_sub_cancel' h1] at hh
+      unfold ltLoopGuarded at hulwc ⊢
+      by_cases hb' : bit
+      · rw [if_pos hb'] at hulwc ⊢
+        have hbT : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = true := by
+          intro k h1 h2; rw [hbits' k h1 h2]; exact hb'
+        have hmr := missRunVal_of_bits av bound hi lo true hbT
+        simp only [if_true] at hmr
+        have hsplit := missAbove_split av bound lo (hi + 1) (by omega) (by omega) (by omega)
+        simp only [Nat.add_sub_cancel] at hsplit
+        have hnew : Expression.eval env.toEnvironment (addMissing a hi lo m) =
+            missAbove av bound lo := by
+          rw [eval_addMissing env.toEnvironment av a ha, hm, hsplit, hmr,
+            add_comm (missAbove av bound (hi + 1)), add_left_inj]
+          have e1 : hi + 1 - lo = hi - lo + 1 := by omega
+          rw [e1, ← sum_range_reflect' (fun k => 1 - av k) hi lo (by omega)]
+        exact ih lo _ n (by omega) hrest hnew hulwc
+      · rw [if_neg hb'] at hulwc ⊢
+        simp only [Bool.not_eq_true] at hb'
+        simp only [bind_snd, witnessField_snd, assertZero_snd, Operations.localLength,
+          List.sum_cons, List.sum_nil, Nat.add_zero] at hulwc ⊢
+        unfold ProverEnvironment.UsesLocalWitnessesCompleteness at hulwc
+        obtain ⟨hwit, hulwc'⟩ := hulwc
+        have hbF : ∀ k, lo ≤ k → k ≤ hi → bitAt bound k = false := by
+          intro k h1 h2; rw [hbits' k h1 h2]; exact hb'
+        have hmr := missRunVal_of_bits av bound hi lo false hbF
+        simp only [if_false, Bool.false_eq_true] at hmr
+        have hsplit := missAbove_split av bound lo (hi + 1) (by omega) (by omega) (by omega)
+        simp only [Nat.add_sub_cancel] at hsplit
+        have hsame : Expression.eval env.toEnvironment m = missAbove av bound lo := by
+          rw [hm, hsplit, hmr, zero_add]
+        simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append,
+          Operations.forAllNoOffset_append, Operations.forAllNoOffset, and_true]
+        refine ⟨trivial, ?_, ?_⟩
+        · have hw := hwit ⟨0, by simp⟩
+          rw [Witgen.WitgenIR.getElem_eval_ofFExpr] at hw
+          simp only [Witgen.FExpr.eval, Nat.add_zero] at hw
+          have hsum : Expression.eval env.toEnvironment (runSum a hi lo) = runSumVal av hi lo :=
+            eval_runSum env.toEnvironment av a ha hi lo
+          simp only [circuit_norm, pm] at hw ⊢
+          have hc1 : Expression.eval env.toEnvironment (cst 1) = 1 := rfl
+          by_cases hfac : Expression.eval env.toEnvironment m +
+              (Expression.eval env.toEnvironment (cst 1) -
+                Expression.eval env.toEnvironment guard) = 0
+          · have hg1 : Expression.eval env.toEnvironment guard = 1 := by
+              rcases hg with h0 | h1
+              · exfalso
+                apply missAbove_add_one_ne_zero av bound (hi + 1) hb
+                rw [hm, h0, hc1] at hfac
+                simpa using hfac
+              · exact h1
+            have hm0 : Expression.eval env.toEnvironment m = 0 := by
+              rw [hg1, hc1] at hfac
+              simpa using hfac
+            have hz := run_bits_zero av bound (hi, lo, bit) hbits' hb' (by omega) hb
+              (by rw [← hm]; exact hm0) hpref (hle hg1)
+            have hsz : runSumVal av hi lo = 0 :=
+              runSumVal_eq_zero_of_bits av hi lo (by omega) hz
+            simp [hfac, hsum, hsz]
+          · rw [hw]
+            simp only [hsum]
+            field_simp
+            ring_nf
+        · have h := ih lo _ (n + 1) (by omega) hrest hsame hulwc'
+          simpa [Circuit.operations, ConstraintsHold.Completeness] using h
+
 end StandardECDSA.Gadgets

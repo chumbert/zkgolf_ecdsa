@@ -370,6 +370,180 @@ theorem runSumVal_eq_zero (av : Nat → Fp) (hi lo : Nat) (h : lo ≤ hi) (hhi :
   · exact h'
   · simp [aNatOf, h'] at hk
 
+/-! ## Prefix monotonicity (used by completeness) -/
+
+theorem prefVal_add (x : Nat → Nat) (m k : Nat) :
+    prefVal x (m + k) = prefVal x m * 2 ^ k + prefVal (fun j => x (m + j)) k := by
+  induction k with
+  | zero =>
+      rw [Nat.add_zero, pow_zero, mul_one]
+      show prefVal x m = prefVal x m + prefVal (fun j => x (m + j)) 0
+      rw [show prefVal (fun j => x (m + j)) 0 = 0 from rfl, add_zero]
+  | succ k ih =>
+      rw [Nat.add_succ, prefVal, ih, prefVal, Nat.pow_succ]
+      ring
+
+theorem prefVal_lt_two_pow (y : Nat → Nat) (k : Nat) (hy : ∀ j < k, y j ≤ 1) :
+    prefVal y k < 2 ^ k := by
+  induction k with
+  | zero => show (0 : Nat) < 1; exact Nat.zero_lt_one
+  | succ k ih =>
+      have h1 := ih (fun j hj => hy j (by omega))
+      have h2 := hy k (by omega)
+      rw [prefVal, Nat.pow_succ]
+      omega
+
+/-- A strictly larger prefix value stays strictly larger. -/
+theorem prefVal_lt_of_lt {x y : Nat → Nat} {m : Nat} (hm : m ≤ 256)
+    (h : prefVal y m < prefVal x m) (hy : ∀ j, m ≤ j → j < 256 → y j ≤ 1) :
+    prefVal y 256 < prefVal x 256 := by
+  have hd : m ≤ 256 := hm
+  have e1 : prefVal y 256 = prefVal y m * 2 ^ (256 - m) +
+      prefVal (fun j => y (m + j)) (256 - m) := by
+    rw [← prefVal_add, Nat.add_sub_cancel' hd]
+  have e2 : prefVal x 256 = prefVal x m * 2 ^ (256 - m) +
+      prefVal (fun j => x (m + j)) (256 - m) := by
+    rw [← prefVal_add, Nat.add_sub_cancel' hd]
+  have hlt : prefVal (fun j => y (m + j)) (256 - m) < 2 ^ (256 - m) :=
+    prefVal_lt_two_pow _ _ (fun j hj => hy (m + j) (by omega) (by omega))
+  have hge : (prefVal y m + 1) * 2 ^ (256 - m) ≤ prefVal x m * 2 ^ (256 - m) :=
+    Nat.mul_le_mul_right _ h
+  rw [e1, e2]
+  calc prefVal y m * 2 ^ (256 - m) + prefVal (fun j => y (m + j)) (256 - m)
+      < prefVal y m * 2 ^ (256 - m) + 2 ^ (256 - m) := Nat.add_lt_add_left hlt _
+    _ = (prefVal y m + 1) * 2 ^ (256 - m) := by ring
+    _ ≤ prefVal x m * 2 ^ (256 - m) := hge
+    _ ≤ prefVal x m * 2 ^ (256 - m) + prefVal (fun j => x (m + j)) (256 - m) :=
+        Nat.le_add_right _ _
+
+/-- The missing count as a natural number. -/
+def missNat (av : Nat → Fp) (bound p : Nat) : Nat :=
+  ∑ k ∈ Finset.range (256 - p),
+    (if bitAt bound (p + k) then 1 - aNatOf av (p + k) else 0)
+
+theorem missAbove_cast (av : Nat → Fp) (bound p : Nat)
+    (hb : ∀ k, av k = 0 ∨ av k = 1) :
+    missAbove av bound p = (missNat av bound p : Fp) := by
+  unfold missAbove missNat
+  push_cast
+  apply Finset.sum_congr rfl
+  intro k _
+  unfold missTerm
+  by_cases h : bitAt bound (p + k) = true
+  · rw [if_pos h, if_pos h, aNatOf_cast (hb (p + k)),
+      Nat.cast_sub (aNatOf_le_one av (p + k)), Nat.cast_one]
+  · rw [if_neg h, if_neg h]
+
+/-- If the missing count above `p` vanishes, every ONE bit of `bound` at
+position `≥ p` is matched. -/
+theorem av_eq_one_of_missAbove_zero (av : Nat → Fp) (bound p : Nat)
+    (hb : ∀ k, av k = 0 ∨ av k = 1) (h : missAbove av bound p = 0) :
+    ∀ k, p ≤ k → k < 256 → bitAt bound k = true → av k = 1 := by
+  rw [missAbove_cast av bound p hb] at h
+  have hle : missNat av bound p ≤ 256 := by
+    have h1 : missNat av bound p ≤ ∑ _k ∈ Finset.range (256 - p), 1 := by
+      unfold missNat
+      apply Finset.sum_le_sum
+      intro k _
+      split
+      · have := aNatOf_le_one av (p + k); omega
+      · omega
+    have h2 : (∑ _k ∈ Finset.range (256 - p), 1) = 256 - p := by simp
+    omega
+  have hprime : (256 : Nat) < circuitPrime := by decide
+  have h0 : missNat av bound p = 0 := by
+    rw [ZMod.natCast_eq_zero_iff] at h
+    exact Nat.eq_zero_of_dvd_of_lt h (by omega)
+  intro k hk1 hk2 hbk
+  have hmem : k - p ∈ Finset.range (256 - p) := Finset.mem_range.mpr (by omega)
+  have hz := (Finset.sum_eq_zero_iff.mp h0) (k - p) hmem
+  rw [show p + (k - p) = k from by omega, if_pos hbk] at hz
+  have hb1 := aNatOf_le_one av k
+  have h1 : aNatOf av k = 1 := by omega
+  rcases hb k with h' | h'
+  · simp [aNatOf, h'] at h1
+  · exact h'
+
+/-- Above a zero run with vanishing missing count, the bits agree with `bound`. -/
+theorem agree_of_miss_zero (av : Nat → Fp) (bound p q : Nat)
+    (hb : ∀ k, av k = 0 ∨ av k = 1)
+    (hmiss : missAbove av bound p = 0)
+    (hzero : ∀ k, q ≤ k → k < p → bitAt bound k = false)
+    (hpref : prefVal (boundNat bound) 256 = bound)
+    (hle : prefVal (fun j => aNatOf av (255 - j)) 256 ≤ bound) :
+    ∀ j, j < 256 - q → aNatOf av (255 - j) = boundNat bound j := by
+  have hone := av_eq_one_of_missAbove_zero av bound p hb hmiss
+  intro j
+  induction j using Nat.strong_induction_on with
+  | _ j ih =>
+      intro hj
+      have hk2 : 255 - j < 256 := by omega
+      by_cases hbnd : bitAt bound (255 - j) = true
+      · have hk1 : p ≤ 255 - j := by
+          by_contra hlt
+          have := hzero (255 - j) (by omega) (by omega)
+          rw [this] at hbnd; exact absurd hbnd (by simp)
+        have hbn : boundNat bound j = 1 := by simp [boundNat, bBit, hbnd]
+        rw [hbn]
+        simp [aNatOf, hone (255 - j) hk1 hk2 hbnd]
+      · have hbnd' : bitAt bound (255 - j) = false := by simpa using hbnd
+        have hbn : boundNat bound j = 0 := by simp [boundNat, bBit, hbnd']
+        rw [hbn]
+        by_contra hne
+        have hav : av (255 - j) = 1 := by
+          rcases hb (255 - j) with h' | h'
+          · simp [aNatOf, h'] at hne
+          · exact h'
+        have hx : aNatOf av (255 - j) = 1 := by simp [aNatOf, hav]
+        have hcongr : prefVal (fun j' => aNatOf av (255 - j')) j =
+            prefVal (boundNat bound) j := by
+          apply prefVal_congr
+          intro j' hj'
+          exact ih j' hj' (by omega)
+        have hlt : prefVal (boundNat bound) (j + 1) <
+            prefVal (fun j' => aNatOf av (255 - j')) (j + 1) := by
+          simp only [prefVal, hcongr, hx, hbn]
+          omega
+        have h2 := prefVal_lt_of_lt (m := j + 1) (by omega) hlt
+          (fun j' _ _ => by simp only [boundNat]; split <;> omega)
+        rw [hpref] at h2
+        omega
+
+/-- A run sum vanishes when every bit of the run is zero. -/
+theorem runSumVal_eq_zero_of_bits (av : Nat → Fp) (hi lo : Nat) (h : lo ≤ hi)
+    (hb : ∀ k, lo ≤ k → k ≤ hi → av k = 0) : runSumVal av hi lo = 0 := by
+  unfold runSumVal
+  apply Finset.sum_eq_zero
+  intro j hj
+  simp only [Finset.mem_range] at hj
+  exact hb (hi - j) (by omega) (by omega)
+
+/-- On a zero run whose missing count vanishes, every bit is zero. -/
+theorem run_bits_zero (av : Nat → Fp) (bound : Nat) (r : Nat × Nat × Bool)
+    (hbits : ∀ k, r.2.1 ≤ k → k ≤ r.1 → bitAt bound k = r.2.2)
+    (hrf : r.2.2 = false) (hhi : r.1 ≤ 255)
+    (hb : ∀ k, av k = 0 ∨ av k = 1)
+    (hmiss : missAbove av bound (r.1 + 1) = 0)
+    (hpref : prefVal (boundNat bound) 256 = bound)
+    (hle : prefVal (fun j => aNatOf av (255 - j)) 256 ≤ bound) :
+    ∀ k, r.2.1 ≤ k → k ≤ r.1 → av k = 0 := by
+  have hagree := agree_of_miss_zero av bound (r.1 + 1) r.2.1 hb hmiss
+    (fun k h1 h2 => (hbits k h1 (by omega)).trans hrf) hpref hle
+  intro k h1 h2
+  have hk : 255 - k < 256 - r.2.1 := by omega
+  have h := hagree (255 - k) hk
+  have hbn : boundNat bound (255 - k) = 0 := by
+    have hb1 : bBit bound (255 - k) = false := by
+      unfold bBit
+      rw [show 255 - (255 - k) = k from by omega, hbits k h1 h2, hrf]
+    simp [boundNat, hb1]
+  rw [hbn] at h
+  have hk' : 255 - (255 - k) = k := by omega
+  rw [hk'] at h
+  rcases hb k with h' | h'
+  · exact h'
+  · simp [aNatOf, h'] at h
+
 /-- The missing count vanishes when every ONE bit above `p` is matched. -/
 theorem missAbove_eq_zero (av : Nat → Fp) (bound p : Nat)
     (h : ∀ k, p ≤ k → k < 256 → bitAt bound k = true → av k = 1) :
