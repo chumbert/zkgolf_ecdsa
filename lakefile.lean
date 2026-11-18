@@ -19,3 +19,6 @@ lean_exe baselineCheck where
 lean_lib Solution
 
 lean_lib StandardECDSA
+
+lean_exe standardEcdsaCheck where
+  root := `StandardECDSA.Check
