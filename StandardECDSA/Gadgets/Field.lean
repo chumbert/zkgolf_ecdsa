@@ -50,7 +50,15 @@ constant expressions. -/
 def constVal (e : E) : Fp := e.eval ⟨fun _ => 0, fun _ _ => #[]⟩
 
 /-- Make `e` affine by giving every product term its own wire
-(1 allocation + 1 row each). -/
+(1 allocation + 1 row each).
+
+The branch condition is written on the *input* degrees `deg a`, `deg b` rather
+than on the degrees of the already-materialised factors `deg a'`, `deg b'`.
+This is the same branch: `mat` maps degree `0` to degree `0` and degree `≥ 1` to
+degree `≥ 1` (`matDeg_eq_zero` in `Gadgets/Cost.lean`), so
+`deg a' = 0 ∨ deg b' = 0 ↔ deg a = 0 ∨ deg b = 0`.  Writing it on the inputs
+makes the allocation count a pure function of the expression's structure, which
+is what the cost certificates of `Gadgets/Cost.lean` need. -/
 def mat : E → C E
   | .var v => pure (.var v)
   | .const c => pure (.const c)
@@ -61,7 +69,7 @@ def mat : E → C E
   | .mul a b => do
       let a' ← mat a
       let b' ← mat b
-      if deg a' = 0 ∨ deg b' = 0 then pure (.mul a' b')
+      if deg a = 0 ∨ deg b = 0 then pure (.mul a' b')
       else do
         let w ← Circuit.witnessField (.mul (.expr a') (.expr b'))
         Circuit.assertZero (.mul a' b' - w)

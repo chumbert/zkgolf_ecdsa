@@ -50,6 +50,10 @@ import StandardECDSA.Gadgets.Select
 import StandardECDSA.Gadgets.Scalar
 import StandardECDSA.Gadgets.Affine
 import StandardECDSA.Gadgets.ELM
+import StandardECDSA.Gadgets.Lemmas
+import StandardECDSA.Gadgets.Cost
+import StandardECDSA.Math.ElmAlgebra
+import StandardECDSA.Math.AffineBridge
 import StandardECDSA.Phases.FixedBase
 import StandardECDSA.Phases.ShiftedTables
 import StandardECDSA.Phases.JointLadder
