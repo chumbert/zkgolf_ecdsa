@@ -75,6 +75,39 @@ def hint (i : Nat) : C E :=
 /-- The P-256 group order as a field element. -/
 def nFp : Fp := (Challenge.Specs.ECDSAP256.n : Fp)
 
+/-- The per-bit body of a 256-bit hint vector: allocate the hint cell and assert
+that it is Boolean. -/
+def bitBody (base stride : Nat) (i : Fin 256) : C E := do
+  let b ← hint (base + stride * i.val)
+  Gadgets.assertBool b
+  pure b
+
+/-- Every bit body allocates exactly one wire and one row. -/
+def bitBody_constantLength (base stride : Nat) : Circuit.ConstantLength (bitBody base stride) where
+  localLength := 1
+  localLength_eq := by
+    intro i n
+    simp only [bitBody, hint, Gadgets.assertBool, Circuit.localLength, bind_snd, pure_snd,
+      witnessField_snd, assertZero_snd, localLength_witness, localLength_assert,
+      Operations.append_localLength, Operations.localLength, Nat.add_zero, Nat.zero_add]
+
+/-- A 256-bit hint vector. -/
+def bitVec (base stride : Nat) : C (Vector E 256) :=
+  Circuit.mapFinRange 256 (bitBody base stride) (bitBody_constantLength base stride)
+
+/-- Every entry of a `bitVec` is a wire. -/
+theorem bitVec_deg (base stride n : Nat) (k : Fin 256) :
+    deg ((Circuit.output (bitVec base stride) n).get k) = 1 := by
+  rw [bitVec, Circuit.mapFinRange.output_eq]
+  simp only [Vector.getElem_mapFinRange, Vector.get_eq_getElem]
+  simp only [bitBody, hint, output_bind, output_pure, output_witnessField, deg,
+    Challenge.CostR1CS.degree]
+
+/-- Little-endian linear combination `sum_{j < len} 2^j * v[lo + j]`. -/
+def linComb (v : Vector E 256) (lo len : Nat) : E :=
+  (List.range len).foldl
+    (fun acc j => acc + sc ((2 : Fp) ^ j) (v.getD (lo + j) (cst 0))) (cst 0)
+
 /-- The standard P-256 ECDSA circuit. -/
 def main (inp : Var Input Fp) : C Unit := do
   -- seed: R.y, H, overflow
@@ -96,35 +129,15 @@ def main (inp : Var Input Fp) : C Unit := do
   let negS := cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s
   let _ ← nonzero negS
   -- scalar bits
-  let mut eb : Array E := #[]
-  let mut rb : Array E := #[]
-  let mut sb : Array E := #[]
-  let mut eeLo := cst 0
-  let mut eeHi := cst 0
-  let mut rr := cst 0
-  let mut ss := cst 0
-  for i in [0:256] do
-    let be ← hint (4 + 3 * i)
-    let br ← hint (5 + 3 * i)
-    let bs ← hint (6 + 3 * i)
-    Gadgets.assertBool be
-    Gadgets.assertBool br
-    Gadgets.assertBool bs
-    eb := eb.push be
-    rb := rb.push br
-    sb := sb.push bs
-    if i < 128 then
-      eeLo := eeLo + sc ((2 : Fp) ^ i) be
-    else
-      eeHi := eeHi + sc ((2 : Fp) ^ (i - 128)) be
-    rr := rr + sc ((2 : Fp) ^ i) br
-    ss := ss + sc ((2 : Fp) ^ i) bs
+  let eb ← bitVec 4 3
+  let rb ← bitVec 5 3
+  let sb ← bitVec 6 3
   -- digest binding, split into two 128-bit limbs
-  Circuit.assertZero (eeLo - inp.digestLo)
-  Circuit.assertZero (eeHi - inp.digestHi)
+  Circuit.assertZero (linComb eb 0 128 - inp.digestLo)
+  Circuit.assertZero (linComb eb 128 128 - inp.digestHi)
   -- scalar bindings
-  Circuit.assertZero (rr - inp.r)
-  Circuit.assertZero (ss - negS)
+  Circuit.assertZero (linComb rb 0 256 - inp.r)
+  Circuit.assertZero (linComb sb 0 256 - negS)
   -- order comparisons
   assertLtOrderOf nSubOne (fun i => rb.getD i (cst 0))
   assertLtOrderOf nSubOne (fun i => sb.getD i (cst 0))

@@ -28,6 +28,8 @@ Task T15.
 -/
 
 import StandardECDSA.Gadgets.ELM
+import StandardECDSA.Gadgets.LocalLength
+import StandardECDSA.Gadgets.SelectW
 import StandardECDSA.Gadgets.Select
 import StandardECDSA.Phases.ShiftedTables
 
@@ -35,18 +37,37 @@ namespace StandardECDSA.Phases
 
 open StandardECDSA.Gadgets
 
+/-- One returning ladder step: select `T_j` from the alternating table and
+combine it with `[2]C_j` via `elm`. -/
+def jointLadderBody (tables : Tables) (rb sb : Vector E 256) (acc : Pt) (j : Fin 255) : C Pt := do
+  let t ← mux4W (rb.get ⟨255 - j.val, by omega⟩) (sb.get ⟨255 - j.val, by omega⟩)
+    (tables.x0 j.val) (tables.x1 j.val) (tables.x2 j.val) (tables.x3 j.val)
+  elm acc t
+
+/-- Every returning ladder step allocates exactly twelve wires. -/
+def jointLadderBody_constantLength (tables : Tables) (rb sb : Vector E 256) :
+    Circuit.ConstantLength (fun (t : Pt × Fin 255) => jointLadderBody tables rb sb t.1 t.2) where
+  localLength := 12
+  localLength_eq := by
+    intro t n
+    obtain ⟨acc, j⟩ := t
+    simp only [jointLadderBody, bind_snd, pure_snd,
+      mux4W_localLength, elm_localLength, Circuit.localLength,
+      Operations.append_localLength, Operations.localLength]
+
+/-- The final ladder step: select `T_255` and assert the result equals `target`
+via `elmTo`. -/
+def jointLadderFinal (tables : Tables) (rb sb : Vector E 256) (acc target : Pt) : C Unit := do
+  let t ← mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+    (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)
+  elmTo acc t target
+
 /-- The joint ladder.  `acc0` is the initial accumulator `-H`; `rb`/`sb` hold the
 `r` and `t = n - s` bits least significant first; `target` is `-ep`. -/
-def jointLadder (acc0 : Pt) (tables : Tables) (rb sb : Array E) (target : Pt) : C Unit := do
-  let mut acc := acc0
-  for j in [0:256] do
-    let i := 255 - j
-    let tab := if j % 2 == 0 then tables.plus else tables.minus
-    let t ← mux4 (rb.getD i (cst 0)) (sb.getD i (cst 0))
-      (tab.getD 0 acc0) (tab.getD 1 acc0) (tab.getD 2 acc0) (tab.getD 3 acc0)
-    if j == 255 then
-      elmTo acc t target
-    else
-      acc ← elm acc t
+def jointLadder (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt) :
+    C Unit := do
+  let acc ← Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+    (jointLadderBody_constantLength tables rb sb)
+  jointLadderFinal tables rb sb acc target
 
 end StandardECDSA.Phases

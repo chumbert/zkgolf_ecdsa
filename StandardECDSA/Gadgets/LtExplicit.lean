@@ -18,6 +18,7 @@ import StandardECDSA.Gadgets.Semantics4
 import StandardECDSA.Gadgets.AzlExplicit
 import StandardECDSA.Gadgets.Cost
 import StandardECDSA.Gadgets.R1CS
+import StandardECDSA.Gadgets.LocalLength
 
 set_option maxRecDepth 100000
 
@@ -32,11 +33,6 @@ open Challenge.Instances.ECDSA_P256_Digest.Interface
 def ltLoopLen : List (Nat × Nat × Bool) → Nat
   | [] => 0
   | (_, _, bit) :: rest => (if bit then 0 else 1) + ltLoopLen rest
-
-theorem localLength_witness (m : Nat) (c : Witgen.WitgenIR Fp m) :
-    Operations.localLength [Operation.witness m c] = m := rfl
-
-theorem localLength_assert (e : E) : Operations.localLength [Operation.assert e] = 0 := rfl
 
 theorem ltLoop_localLength (a : Nat → E) :
     ∀ (missing : E) (l : List (Nat × Nat × Bool)) (n : Nat),

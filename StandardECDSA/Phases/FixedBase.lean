@@ -21,21 +21,38 @@ Task T12 (fixed-base half).
 import StandardECDSA.Gadgets.Select
 import StandardECDSA.Gadgets.Affine
 import StandardECDSA.Math.FixedTables
+import StandardECDSA.Gadgets.LocalLength
+import StandardECDSA.Gadgets.SelectW
 
 namespace StandardECDSA.Phases
 
 open StandardECDSA.Gadgets
 
+/-- One window of the fixed-base phase: add `[(4 + d_i)·4^i]G` to `ep`. -/
+def fixedBaseBody (eb : Vector E 256) (tables : Array (Array (Fp × Fp))) (ep : Pt)
+    (i : Fin 128) : C Pt := do
+  let t ← muxConst4W (eb.get ⟨2 * i.val, by omega⟩) (eb.get ⟨2 * i.val + 1, by omega⟩)
+    (tables.getD i.val #[])
+  affAdd ep t
+
+/-- Every window of the fixed-base phase allocates exactly five wires. -/
+def fixedBaseBody_constantLength (eb : Vector E 256) (tables : Array (Array (Fp × Fp))) :
+    Circuit.ConstantLength (fun (t : Pt × Fin 128) => fixedBaseBody eb tables t.1 t.2) where
+  localLength := 5
+  localLength_eq := by
+    intro t n
+    obtain ⟨ep, j⟩ := t
+    simp only [fixedBaseBody, bind_snd, pure_snd,
+      muxConst4W_localLength, affAdd_localLength,
+      Circuit.localLength, Operations.append_localLength, Operations.localLength]
+
 /-- The fixed-base phase.  `eb` holds the 256 digest bits, least significant
 first.  Returns `ep = H + [E]G` in affine coordinates. -/
-def fixedBase (h : Pt) (eb : Array E) : C Pt := do
+def fixedBase (h : Pt) (eb : Vector E 256) : C Pt := do
   let shift := StandardECDSA.Math.FixedTables.fixedShift
   let tables := StandardECDSA.Math.FixedTables.fixedTables
-  let mut ep ← affAdd h (cst shift.1, cst (-shift.2))
-  for i in [0:128] do
-    let t ← muxConst4 (eb.getD (2 * i) (cst 0)) (eb.getD (2 * i + 1) (cst 0))
-      (tables.getD i #[])
-    ep ← affAdd ep t
-  return ep
+  let ep0 ← affAdd h (cst shift.1, cst (-shift.2))
+  Circuit.foldlRange 128 ep0 (fixedBaseBody eb tables)
+    (fixedBaseBody_constantLength eb tables)
 
 end StandardECDSA.Phases
