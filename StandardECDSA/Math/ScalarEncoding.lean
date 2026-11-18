@@ -144,4 +144,59 @@ theorem digest_toNat_lt (lo hi : K) (hlo : lo.val < 2 ^ 128) (hhi : hi.val < 2 ^
   have h3 : 2 ^ 128 * 2 ^ 128 = 2 ^ 256 := by ring
   omega
 
+/-! ## Digest window decomposition
+
+The fixed-base phase consumes the 256 digest bits two at a time: window `i` uses
+bits `2i` and `2i+1` with digit `d_i = b_{2i} + 2·b_{2i+1}`.  The lemmas below
+identify the window sum `∑ d_i·4^i` with the little-endian natural `leNat b`.
+-/
+
+/-- `leNat` as a `Finset.range` sum (avoids `Fin`-indexed sums downstream). -/
+theorem leNat_eq_sum_range (b : Fin 256 → Nat) :
+    leNat b
+      = ∑ j ∈ Finset.range 256, 2 ^ j * b ⟨j % 256, Nat.mod_lt _ (by norm_num)⟩ := by
+  rw [leNat, ← Fin.sum_univ_eq_sum_range
+    (fun j => 2 ^ j * b ⟨j % 256, Nat.mod_lt _ (by norm_num)⟩) 256]
+  refine Finset.sum_congr rfl ?_
+  intro j _
+  simp [Nat.mod_eq_of_lt j.isLt]
+
+/-- Window digit `d_i = b_{2i} + 2·b_{2i+1}` of a 256-bit vector. -/
+def windowDigit (b : Fin 256 → Nat) (i : Nat) : Nat :=
+  b ⟨2 * i % 256, Nat.mod_lt _ (by norm_num)⟩
+    + 2 * b ⟨(2 * i + 1) % 256, Nat.mod_lt _ (by norm_num)⟩
+
+/-- Pairing identity: the window sum of `b` over `m` windows is the bit sum over
+the first `2m` bits. -/
+theorem window_digit_sum_aux (b : Nat → Nat) :
+    ∀ m : Nat, (∑ i ∈ Finset.range m, (b (2 * i) + 2 * b (2 * i + 1)) * 4 ^ i)
+      = ∑ j ∈ Finset.range (2 * m), 2 ^ j * b j := by
+  intro m
+  induction m with
+  | zero => simp
+  | succ k ih =>
+    rw [Finset.sum_range_succ, ih,
+      show 2 * (k + 1) = 2 * k + 1 + 1 from by omega,
+      Finset.sum_range_succ, Finset.sum_range_succ]
+    have h1 : 2 ^ (2 * k) = 4 ^ k := by
+      rw [show (2:Nat) ^ (2 * k) = (2 ^ 2) ^ k from by rw [Nat.pow_mul],
+        show (2:Nat) ^ 2 = 4 from rfl]
+    have h2 : 2 ^ (2 * k + 1) = 2 * 4 ^ k := by
+      rw [Nat.pow_succ, h1, Nat.mul_comm]
+    rw [h1, h2]
+    have h3 : (b (2 * k) + 2 * b (2 * k + 1)) * 4 ^ k
+        = 4 ^ k * b (2 * k) + 2 * 4 ^ k * b (2 * k + 1) := by
+      rw [Nat.add_mul, Nat.mul_assoc, Nat.mul_comm (b (2 * k)) (4 ^ k),
+        Nat.mul_comm (b (2 * k + 1)) (4 ^ k), Nat.mul_assoc]
+    rw [h3]
+    omega
+
+/-- **Digest window decomposition.**  For any 256-bit vector `b`, the window
+digits `b_{2i} + 2·b_{2i+1}` recompose to the little-endian natural. -/
+theorem window_digit_sum (b : Fin 256 → Nat) :
+    (∑ i ∈ Finset.range 128, windowDigit b i * 4 ^ i) = leNat b := by
+  simp only [windowDigit]
+  rw [window_digit_sum_aux (fun j => b ⟨j % 256, Nat.mod_lt _ (by norm_num)⟩) 128,
+    show 2 * 128 = 256 from rfl, leNat_eq_sum_range]
+
 end StandardECDSA.Math
