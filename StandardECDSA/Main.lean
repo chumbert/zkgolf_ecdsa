@@ -43,6 +43,8 @@ import StandardECDSA.Math.GroupOrder
 import StandardECDSA.Math.ScalarEncoding
 import StandardECDSA.Math.ConstantBounds
 import StandardECDSA.Math.OffsetConditions
+import StandardECDSA.Math.OffsetCandidates
+import StandardECDSA.Math.SignatureEquation
 import StandardECDSA.Math.FixedTables
 import StandardECDSA.Witness.Seed
 import StandardECDSA.Gadgets.Field
