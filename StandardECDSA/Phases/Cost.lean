@@ -75,6 +75,7 @@ theorem shiftedTables_cost (h q r : Pt) (hh : deg h.1 = 1) :
 /-- One returning ladder step costs `mux4` (6/6) plus `elm` (6/6). -/
 theorem jointLadderBody_cost (tables : Tables) (rb sb : Vector E 256) (acc : Pt) (j : Fin 255) :
     CostIs (jointLadderBody tables rb sb acc j) ⟨12, 12⟩ := by
+  rw [jointLadderBody_eq_bind]
   have h := CostIs.bind
     (mux4W_cost (rb.get ⟨255 - j.val, by omega⟩) (sb.get ⟨255 - j.val, by omega⟩)
       (tables.x0 j.val) (tables.x1 j.val) (tables.x2 j.val) (tables.x3 j.val))
@@ -93,14 +94,17 @@ theorem jointLadderFinal_cost (tables : Tables) (rb sb : Vector E 256) (acc targ
 /-- The joint ladder costs 255 returning steps of 12/12 plus a final 10/12. -/
 theorem jointLadder_cost (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt) :
     CostIs (jointLadder acc0 tables rb sb target) ⟨3070, 3072⟩ := by
-  have h1 : CostIs (jointLadder acc0 tables rb sb target)
-      (⟨255 * 12, 255 * 12⟩ + ⟨10, 12⟩) :=
-    CostIs.bind
-      (CostIs.foldlRange (m := 255) (init := acc0)
-        (body := jointLadderBody tables rb sb)
-        (constant := jointLadderBody_constantLength tables rb sb)
-        (K := ⟨12, 12⟩) (fun s i n => jointLadderBody_cost tables rb sb s i n))
-      (fun acc => jointLadderFinal_cost tables rb sb acc target)
-  exact CostIs.congr h1 (by decide)
+  -- Proved at the `operationCount` level rather than through `CostIs.bind`: the
+  -- latter would need the defeq `jointLadder = foldlRange … >>= …`, and
+  -- `Circuit.bind` destructures its first argument, so that check unfolds the
+  -- whole 255-step fold.
+  intro n
+  rw [jointLadder_ops, Lemmas.operationCount_append]
+  rw [CostIs.foldlRange (m := 255) (init := acc0)
+    (body := jointLadderBody tables rb sb)
+    (constant := jointLadderBody_constantLength tables rb sb)
+    (K := ⟨12, 12⟩) (fun s i n => jointLadderBody_cost tables rb sb s i n) n]
+  rw [jointLadderFinal_cost tables rb sb _ target (n + 3060)]
+  decide
 
 end StandardECDSA.Phases

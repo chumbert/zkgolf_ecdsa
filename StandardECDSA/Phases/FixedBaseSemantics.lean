@@ -341,4 +341,208 @@ theorem fixedBase_out (h : Pt) (eb : Vector E 256) (n : Nat) :
           (fixedBaseBody_constantLength eb fixedTables)).output (n + 4) := by
   simp only [fixedBase, Circuit.operations, Circuit.output, affAdd_localLength]
 
+
+/-! ## TEST -/
+example (h : Pt) (eb : Vector E 256) (n : Nat) (env : Environment Fp)
+    (hc : ConstraintsHold.Soundness env ((fixedBase h eb).operations n)) :
+    ConstraintsHold.Soundness env ((affAdd h (cst shiftX, cst (-shiftY))).operations n
+      ++ (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+            (fixedBaseBody eb fixedTables) (fixedBaseBody_constantLength eb fixedTables)).operations (n + 4)) :=
+  hc
+
+
+/-! ## Splitting soundness of an appended operation list -/
+
+/-- The `ConstraintsHold.Soundness` condition, written as an explicit
+`ConditionNoOffset`. -/
+def soundnessCond (env : Environment Fp) : ConditionNoOffset Fp where
+  assert e := env e = 0
+  lookup l := l.Soundness env
+  interact i := i.Guarantees env
+  subcircuit s := s.Assumptions env → s.Spec env
+
+/-- **Split the soundness of an appended operation list.**
+
+Stated with the two halves as *explicit variables*: `Operations.forAllNoOffset_append`
+then applies without `whnf`-ing either half.  If the halves are written out
+inline, `whnf` reduces the left half to a concrete `cons` list and the append
+structure is lost, which makes the unification loop. -/
+theorem soundness_append (env : Environment Fp) (A B : Operations Fp)
+    (h : ConstraintsHold.Soundness env (A ++ B)) :
+    ConstraintsHold.Soundness env A ∧ B.forAllNoOffset (soundnessCond env) := by
+  simp only [ConstraintsHold.Soundness, soundnessCond, Operations.forAllNoOffset_append] at h
+  exact h
+
+
+/-- **Per-step soundness of a `foldlRange`.**
+
+The loop body's constraints at step `i` follow from the loop's constraints.
+Stated with the loop parameters as variables so that
+`Circuit.foldlRange.forAllNoOffset` applies without `whnf`-ing the fold. -/
+theorem soundness_foldlRange (env : Environment Fp) {m : Nat} {β : Type} [Inhabited β]
+    {init : β} {body : β → Fin m → Circuit Fp β}
+    {constant : Circuit.ConstantLength fun (t : β × Fin m) => body t.1 t.2} {n : Nat}
+    (h : ((Circuit.foldlRange m init body constant).operations n).forAllNoOffset
+      (soundnessCond env)) :
+    ∀ i : Fin m,
+      ((body (Circuit.FoldlM.foldlAcc n (Vector.finRange m) body init i) i).operations
+        (n + i * (body default i).localLength)).forAllNoOffset (soundnessCond env) := by
+  rw [Circuit.foldlRange.forAllNoOffset] at h
+  exact h
+
+
+/-- **Split a phase into a prefix and a `foldlRange` loop, and expose the loop's
+per-step constraints.**  The loop parameters are variables, so neither
+`Operations.forAllNoOffset_append` nor `Circuit.foldlRange.forAllNoOffset` has to
+`whnf` the fold. -/
+theorem soundness_append_foldlRange (env : Environment Fp) (A : Operations Fp)
+    {m : Nat} {β : Type} [Inhabited β] {init : β} {body : β → Fin m → Circuit Fp β}
+    {constant : Circuit.ConstantLength fun (t : β × Fin m) => body t.1 t.2} {n : Nat}
+    (h : ConstraintsHold.Soundness env
+      (A ++ (Circuit.foldlRange m init body constant).operations n)) :
+    ConstraintsHold.Soundness env A ∧
+      ∀ i : Fin m,
+        ((body (Circuit.FoldlM.foldlAcc n (Vector.finRange m) body init i) i).operations
+          (n + i * (body default i).localLength)).forAllNoOffset (soundnessCond env) :=
+  ⟨(soundness_append env A _ h).1, soundness_foldlRange env (soundness_append env A _ h).2⟩
+
+/-- Generic invariant induction for `Fin.foldl`, with the step hypothesis stated
+at the *actual* accumulator.
+
+This is the form needed when the step's justification (here: the row
+constraints of the loop body) is only available at the real accumulator, not at
+an arbitrary one. -/
+theorem fin_foldl_inv' {α : Type} {m : Nat} (f : α → Fin m → α) (init : α)
+    (P : Nat → α → Prop) (h0 : P 0 init)
+    (hstep : ∀ (j : Nat) (hj : j < m),
+      P j (Fin.foldl j (fun acc (i : Fin j) => f acc ⟨i.val, by omega⟩) init) →
+      P (j + 1) (f (Fin.foldl j (fun acc (i : Fin j) => f acc ⟨i.val, by omega⟩) init)
+        ⟨j, hj⟩)) :
+    ∀ (k : Nat) (hk : k ≤ m),
+      P k (Fin.foldl k (fun acc (i : Fin k) => f acc ⟨i.val, by omega⟩) init) := by
+  intro k
+  induction k with
+  | zero => intro _; simpa using h0
+  | succ k ih =>
+    intro hk
+    rw [Fin.foldl_succ_last]
+    exact hstep k (by omega) (ih (by omega))
+
+/-! ## The fixed-base phase spec (plan §5) -/
+
+set_option linter.constructorNameAsVariable false in
+/-- **Fixed-base phase spec (plan §5).**
+
+From *any* satisfying assignment of the phase's rows, the output is the affine
+point `H + [E]G`, where `E = leNat eBit` is the digest read off the 256 Boolean
+digest bits.  The only extra hypotheses are the Booleanity of the digest bits
+and the distinct-`x` conditions of the 129 affine additions (the initial shift
+addition and the 128 windows), which the global offset theorem supplies.
+
+This is the group-level half of task T12; the row-level halves are
+`affAdd_sound` (`Phases/TableSemantics.lean`) and `muxConst4W_tablePt`. -/
+theorem fixedBase_spec (env : Environment Fp) (h : Pt) (eb : Vector E 256) (n : Nat)
+    (hH : NS (Expression.eval env h.1) (Expression.eval env h.2))
+    (hb : ∀ k : Fin 256,
+      Expression.eval env (eb.get k) = 0 ∨ Expression.eval env (eb.get k) = 1)
+    (hdx0 : Expression.eval env (cst shiftX) - Expression.eval env h.1 ≠ 0)
+    (hdx : ∀ (k : Nat) (hk : k < 128),
+      Expression.eval env ((fbMux eb fixedTables ⟨k, hk⟩).output (n + 4 + k * 5)).1
+        - Expression.eval env (Circuit.FoldlM.foldlAcc (n + 4) (Vector.finRange 128)
+            (fixedBaseBody eb fixedTables)
+            ((affAdd h (cst shiftX, cst (-shiftY))).output n) ⟨k, hk⟩).1 ≠ 0)
+    (hc : ConstraintsHold.Soundness env ((fixedBase h eb).operations n)) :
+    ∃ hns : NS (Expression.eval env ((fixedBase h eb).output n).1)
+        (Expression.eval env ((fixedBase h eb).output n).2),
+      Affine.Point.some (Expression.eval env ((fixedBase h eb).output n).1)
+        (Expression.eval env ((fixedBase h eb).output n).2) hns
+        = Affine.Point.some (Expression.eval env h.1) (Expression.eval env h.2) hH
+          + WeierstrassCurve.Projective.Point.toAffineLift (digestNat env eb • Gpt) := by
+  set Hpt : Affine.Point Wp :=
+    Affine.Point.some (Expression.eval env h.1) (Expression.eval env h.2) hH with hHpt
+  -- the shift point is finite and is `shiftPt`
+  have hS : NS shiftX shiftY :=
+    ns_congr shiftX_eq shiftY_eq
+      (affine_ns (mulG shiftNat) (mulG_on_curve shiftNat)
+        (mulG_Z_ne_zero_gen shiftNat shiftNat_mod_ne_zero))
+  have hshiftPt : Affine.Point.some shiftX shiftY hS = shiftPt :=
+    (some_congr shiftX_eq shiftY_eq hS
+      (affine_ns (mulG shiftNat) (mulG_on_curve shiftNat)
+        (mulG_Z_ne_zero_gen shiftNat shiftNat_mod_ne_zero))).trans fixedShift_some
+  have hB : NS (Expression.eval env (cst shiftX)) (Expression.eval env (cst (-shiftY))) :=
+    negPt_ns hS
+  have hneg : Affine.Point.some (Expression.eval env (cst shiftX))
+      (Expression.eval env (cst (-shiftY))) hB = -shiftPt := by
+    have h := negPt_group shiftX shiftY hS
+    rw [hshiftPt] at h
+    exact h
+  -- split the phase into the initial addition and the 128-window fold
+  have hc' : ConstraintsHold.Soundness env
+      ((affAdd h (cst shiftX, cst (-shiftY))).operations n
+        ++ (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+              (fixedBaseBody eb fixedTables)
+              (fixedBaseBody_constantLength eb fixedTables)).operations (n + 4)) := hc
+  obtain ⟨hc1, hc2⟩ := soundness_append_foldlRange env
+    ((affAdd h (cst shiftX, cst (-shiftY))).operations n) hc'
+  -- the initial addition
+  have hout0 : (affAdd h (cst shiftX, cst (-shiftY))).output n
+      = (Expression.var (F := Fp) ⟨n + 2⟩, Expression.var (F := Fp) ⟨n + 3⟩) := by
+    simp only [affAdd_output]
+  have hcl : ∀ (i : Fin 128),
+      (fixedBaseBody eb fixedTables default i).localLength = 5 := fun i =>
+    (fixedBaseBody_constantLength eb fixedTables).localLength_eq (default, i) 0
+  have hinit : fbInv env eb Hpt 0 ((affAdd h (cst shiftX, cst (-shiftY))).output n) := by
+    rw [hout0]
+    obtain ⟨hR0, hR0val⟩ :=
+      affAdd_sound env h (cst shiftX, cst (-shiftY)) n hH hB hdx0 hc1
+    refine ⟨hR0, hR0val.trans ?_⟩
+    rw [hneg]
+    simp only [hHpt, winSum, Finset.range_zero, Finset.sum_empty, zero_nsmul,
+      toAffineLift_zero, add_zero]
+  -- one window preserves the invariant
+  have hstep : ∀ (j : Nat) (hj : j < 128),
+      fbInv env eb Hpt j (Fin.foldl j (fun acc (i : Fin j) =>
+        (fixedBaseBody eb fixedTables acc ⟨i.val, by omega⟩).output (n + 4 + i.val * 5))
+        ((affAdd h (cst shiftX, cst (-shiftY))).output n)) →
+      fbInv env eb Hpt (j + 1) ((fixedBaseBody eb fixedTables
+        (Fin.foldl j (fun acc (i : Fin j) =>
+          (fixedBaseBody eb fixedTables acc ⟨i.val, by omega⟩).output (n + 4 + i.val * 5))
+          ((affAdd h (cst shiftX, cst (-shiftY))).output n)) ⟨j, hj⟩).output
+        (n + 4 + j * 5)) := by
+    intro j hj hacc
+    have hcj := hc2 ⟨j, hj⟩
+    rw [hcl ⟨j, hj⟩] at hcj
+    rw [foldlAcc_eq env eb fixedTables ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+      (n + 4) j hj] at hcj
+    have hdxj := hdx j hj
+    rw [foldlAcc_eq env eb fixedTables ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+      (n + 4) j hj] at hdxj
+    exact fbStep env eb Hpt (n + 4) j hj _ (hb ⟨2 * j, by omega⟩)
+      (hb ⟨2 * j + 1, by omega⟩) hdxj hacc hcj
+  -- run the induction
+  have hP := fin_foldl_inv' (fun acc (i : Fin 128) =>
+      (fixedBaseBody eb fixedTables acc i).output (n + 4 + i.val * 5))
+    ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (fun k acc => fbInv env eb Hpt k acc) hinit hstep 128 (by omega)
+  -- identify the fold output with the phase output
+  have hfold : (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+        (fixedBaseBody eb fixedTables)
+        (fixedBaseBody_constantLength eb fixedTables)).output (n + 4)
+      = Fin.foldl 128 (fun acc (i : Fin 128) =>
+          (fixedBaseBody eb fixedTables acc ⟨i.val, by omega⟩).output (n + 4 + i.val * 5))
+          ((affAdd h (cst shiftX, cst (-shiftY))).output n) := by
+    rw [Circuit.foldlRange.output_eq]
+    simp only [hcl]
+  have houtEq : (fixedBase h eb).output n
+      = Fin.foldl 128 (fun acc (i : Fin 128) =>
+          (fixedBaseBody eb fixedTables acc ⟨i.val, by omega⟩).output (n + 4 + i.val * 5))
+          ((affAdd h (cst shiftX, cst (-shiftY))).output n) :=
+    (fixedBase_out h eb n).trans hfold
+  obtain ⟨hns, hval⟩ := hP
+  rw [houtEq]
+  refine ⟨hns, hval.trans ?_⟩
+  rw [winSum_128, add_nsmul, toAffineLift_add]
+  simp only [shiftPt]
+  abel
+
 end StandardECDSA.Phases
