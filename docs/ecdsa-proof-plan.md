@@ -134,13 +134,14 @@ is consumed through its proved `Spec`.
   instance, `Challenge/Utils/*.lean`, or `vendor/` (except where a task says so).
 * Toolchain: Lean `v4.34.0`, Clean `93c9d1ef…`, Mathlib `5ed29652…` (see `lakefile.lean`).
   Run `scripts/bootstrap.sh` once if `.lake/` is missing.
-* No `sorry`, no `native_decide`, no `axiom`, no `implemented_by` in proof paths.
+* No `sorry` in verified proof paths. For a blocked, uncommitted draft only,
+  follow §13. No `native_decide`, no `axiom`, no `implemented_by` in proof paths.
   Allowed axioms: `propext`, `Classical.choice`, `Quot.sound`. Check with
   `#print axioms` (pattern: `Baseline/Projected/Audit.lean`, `scripts/check_axioms.py`).
 * Big-number computation in the kernel: state certificates over **`Nat`** (`% p`)
   and close with `decide`/`Nat.decEq` (GMP-accelerated), not `decide` on `ZMod p`
   instances. Raising `maxHeartbeats`/`maxRecDepth` locally is fine; report build time.
-* Each task ends with: the file(s) listed under *Deliverable*, a green
+* A verified task ends with: the file(s) listed under *Deliverable*, a green
   `lake build <module>`, an axiom print, and a short note of statement changes made
   to frozen interfaces (should be none without approval).
 * New proof code lives under `Solution/Projected/` (new `lean_lib SolutionProjected`
@@ -343,6 +344,28 @@ group equation, and an induction over the chain gives the scalar statements.
 Point validity (`OnCurve`) of each chain point comes from `Algebra.affine_add_onCurve`.
 Split generated files to keep each under ~500 checks; record total build time.
 **Accept:** the three theorems, axioms clean, build time reported (target < 15 min total).
+**Implementation notes (M2a, in progress):** the generator `scripts/gen_projected_certs.py`
+emits 13 chunk files `Certs0..12` (chained imports, ~5000 affine-step blocks) plus a
+chained tail `CertsT0..` holding the 512 `tab`/`tab_pt` lemmas, `table_pt_aux`,
+`shift_pt_aux`, and the 4200 `kG_ne` lemmas + `small_multiples_ne_zero_aux`.
+Generated headers carry `set_option maxRecDepth 1000000` and
+`set_option maxHeartbeats 8000000`.
+**Original CertsT0 / fin_cases plan (historical; use the [M2 handoff](./m2-progress-report.md#next-assignment) for the next task):**
+1. Lower `TAIL_CHUNK` (700 → ~128) so the 512 tab lemmas spread over several
+   `CertsT*` files and compile in parallel instead of serializing in one file.
+2. Prove `tab_{i}_{d}` with `by constructor <;> rfl` instead of `by decide` — same
+   kernel reduction of `tableXList.getD`, but skips `Decidable`-instance elaboration
+   (the observed heartbeat timeouts were in `whnf`/`isDefEq` during elaboration).
+3. Fallback if a single lemma still times out: state tab lemmas at Nat level
+   (`(tableX i d).val = (cT.._x).val ∧ ... := by decide`) and lift via
+   `ZMod.val_injective` in `tab_pt`.
+4. Keep `table_pt_aux` as `fin_cases i <;> fin_cases d <;> exact tab_pt_{i}_{d}`
+   (`exact` = defeq; `rw` fails because `fin_cases` produces `⟨i, ⋯⟩` literals that
+   don't syntactically match `OfNat` literals).
+5. Give the `fin_cases fm` over `Fin 4200` in `small_multiples_ne_zero_aux` its own
+   tail file so it cannot block the other tail files.
+6. Verify incrementally: build one tail file at a time and record per-file time
+   before running the full build.
 **Pitfalls:** never unfold `ZMod` arithmetic on 256-bit literals inside `decide`;
 prove a bridge lemma `(a : K) * b = c ↔ (a.val * b.val) % p = c.val` once and feed
 `Nat` facts. Coordinates of `k•G` for small `k` are only needed to show `≠ 0`.
@@ -554,12 +577,25 @@ Decision log (append; one line per decision with date and score impact):
 ## 13. Briefing template for subagents
 
 ```
-You are working in <repo> on branch circuit_baseline. Do not read other branches.
+You are working in <repo> on <assigned branch/worktree per §3>. Do not read other branches.
 Read docs/ecdsa-proof-plan.md §1–§5, then task <ID> (§<n>).
 Inputs you may rely on: <list of completed tasks + their files/theorem names>.
-Deliver exactly the files and theorem statements listed under <ID>. Do not change
-frozen statements from T0.2/M1; if one is wrong or unprovable, stop and report the
-counterexample or the needed change.
-Finish with: lake build <modules>; #print axioms <theorems>; a 5-line report
-(what was proved, build time, any statement deviations, follow-ups).
+Work on one named lemma at a time; build the smallest target that checks it.
+Keep frozen statements unchanged. If one appears false, stop and report the
+counterexample or missing hypothesis; do not admit it.
+
+Stop after two distinct approaches fail on the same goal, or after 20 minutes
+without narrowing the failure, whichever comes first. Record the lemma, exact
+goal/error, smallest reproducing command, attempts and next experiment.
+Switch to an independent ready task if available. If a named consumer needs
+the missing lemma, first prove its part with that lemma as an explicit hypothesis
+in a helper, without changing the promised theorem. Only if that is impractical
+may you use one labeled `sorry` at the missing lemma in an uncommitted draft.
+Record its consumer; mark the lemma and dependent deliverables provisional.
+Do not introduce a placeholder into a trusted spec or submit one as a proof.
+
+Handoff each promised theorem as blocked, provisional, or verified. Verified
+requires the intended statement, a green `lake build <module>`, and a recorded
+`#print axioms <theorem>` containing only §3's allowed axioms. Report the build
+time and next action; a build with `sorryAx` is not verification.
 ```
