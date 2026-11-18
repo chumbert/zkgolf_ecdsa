@@ -18,6 +18,12 @@ theorem refl (e : E) : VarEq e e := by
   | add a b iha ihb => exact .add iha ihb
   | mul a b iha ihb => exact .mul iha ihb
 
+theorem neg {a a' : E} (h : VarEq a a') : VarEq (-a) (-a') :=
+  .mul (.const (-1)) h
+
+theorem sub {a a' b b' : E} (ha : VarEq a a') (hb : VarEq b b') : VarEq (a - b) (a' - b') :=
+  .add ha (neg hb)
+
 theorem deg_eq {e e' : E} (h : VarEq e e') : deg e = deg e' := by
   induction h with
   | var i j => rfl
