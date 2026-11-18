@@ -65,6 +65,16 @@ def Tables.x2 (t : Tables) (j : ℕ) : Pt := if j % 2 == 0 then t.p2 else t.m2
 /-- Fourth entry of the table selected at step `j`. -/
 def Tables.x3 (t : Tables) (j : ℕ) : Pt := if j % 2 == 0 then t.p3 else t.m3
 
+/-- The table entry at index `b0 + 2·b1` of the table selected at step `j`
+(the `+` table for even `j`, the `-` table for odd `j`).  This is the order the
+ladder consumes: `rBit + 2·tBit`. -/
+def Tables.sel (t : Tables) (j : ℕ) (b0 b1 : Bool) : Pt :=
+  match b0, b1 with
+  | false, false => t.x0 j
+  | true, false => t.x1 j
+  | false, true => t.x2 j
+  | true, true => t.x3 j
+
 /-- All eight table entries have wire (degree-one) coordinates. -/
 def Tables.Wires (t : Tables) : Prop :=
   (deg t.p0.1 = 1 ∧ deg t.p0.2 = 1) ∧ (deg t.p1.1 = 1 ∧ deg t.p1.2 = 1) ∧

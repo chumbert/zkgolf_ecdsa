@@ -61,6 +61,7 @@ import StandardECDSA.Phases.ShiftedTables
 import StandardECDSA.Phases.JointLadder
 import StandardECDSA.Phases.Cost
 import StandardECDSA.Phases.Semantics
+import StandardECDSA.Phases.TableSemantics
 
 namespace StandardECDSA
 
