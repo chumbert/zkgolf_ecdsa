@@ -52,6 +52,18 @@ REQUIRED = {
     'StandardECDSA.Math.exists_goodOffset_famOf',
     'StandardECDSA.Math.coeffOf_pos',
     'StandardECDSA.Math.coeffOf_lt',
+    # honest-witness ladder denominators (G1-c)
+    'StandardECDSA.jlAcc_eq_foldl',
+    'StandardECDSA.jointLadder_ladInv',
+    'StandardECDSA.sigmaZ_eq_sigma',
+    'StandardECDSA.famOf_target_ladStep_false',
+    'StandardECDSA.famOf_target_ladStep_true',
+    'StandardECDSA.famOf_target_ladDbl_false',
+    'StandardECDSA.famOf_target_ladDbl_true',
+    "StandardECDSA.nsmul_eq_zsmul_int",
+    'StandardECDSA.elmXu_group',
+    'StandardECDSA.hj1_dx',
+    'StandardECDSA.hj2_dx',
     # witness generation
     'StandardECDSA.Witness.generateSeed_complete',
     # group order

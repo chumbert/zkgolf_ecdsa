@@ -40,6 +40,7 @@ import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
 import StandardECDSA.Phases.HonestDenominators
 import StandardECDSA.Phases.HonestShifted
+import StandardECDSA.HonestLadder
 
 /-! ## End-to-end -/
 
@@ -164,3 +165,17 @@ import StandardECDSA.Phases.HonestShifted
 #print axioms StandardECDSA.Phases.zsmul_sub_of_add_eq
 #print axioms StandardECDSA.Phases.X_eq_imp_bad_zsmul
 #print axioms StandardECDSA.Phases.X_ne_of_avoids_zsmul
+
+/-! ## Honest-witness ladder denominators (G1-c) -/
+
+#print axioms StandardECDSA.jlAcc_eq_foldl
+#print axioms StandardECDSA.jointLadder_ladInv
+#print axioms StandardECDSA.sigmaZ_eq_sigma
+#print axioms StandardECDSA.famOf_target_ladStep_false
+#print axioms StandardECDSA.famOf_target_ladStep_true
+#print axioms StandardECDSA.famOf_target_ladDbl_false
+#print axioms StandardECDSA.famOf_target_ladDbl_true
+#print axioms StandardECDSA.nsmul_eq_zsmul_int
+#print axioms StandardECDSA.elmXu_group
+#print axioms StandardECDSA.hj1_dx
+#print axioms StandardECDSA.hj2_dx

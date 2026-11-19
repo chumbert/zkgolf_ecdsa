@@ -512,9 +512,45 @@ proofs are the same as the `Nat` versions with `sub_zsmul` / `add_zsmul` in
 place of `nsmul_sub_of_add_eq` / `add_nsmul`.  (Note `sub_zsmul`'s argument
 order is `sub_zsmul (a : G) (m n : ℤ)`.)
 
-**What remains (G1-c).** The 256-step ladder denominators `hj1`, `hj2`,
-`hjf1 … hjf4` — now unblocked by the `ℤ` bridge — then discharging
-`CompleteWitness`'s denominator fields from `exists_goodOffset_famOf`.
+**G1-c, the ladder denominators `hj1` / `hj2` — DONE (round 28).**
+`StandardECDSA/HonestLadder.lean` (new file) proves
+
+* `jlAcc_eq_foldl` — the `@[irreducible]` accumulator `jlAcc` is the
+  `Fin.foldl` prefix of the 255-step loop;
+* `jointLadder_ladInv` — the signed-offset prefix invariant, extracted from the
+  phase rows by `fin_foldl_inv'` (the `hP` derivation of `jointLadder_spec`);
+* `sigmaZ_eq_sigma`, `famOf_target_ladStep_false/_true`,
+  `famOf_target_ladDbl_false/_true` — the four ladder slot targets in affine
+  form;
+* `nsmul_eq_zsmul_int` — `(n : ℤ) • P = n • P`;
+* `elmXu_group` — the `xu` allocated by `elmCore` is the `x`-coordinate of
+  `p + q` in the group (built from `ElmAlgebra.affine_add_onCurve` and
+  `Math.AffineBridge.affine_add_eq_group`);
+* `hj1_dx` — `x(T_j) ≠ x(C_j)` for every `j < 255`;
+* `hj2_dx` — `x(C_j) ≠ x(C_j + T_j)` for every `j < 255`.
+
+With `σ_j = (-1)^j`, `C_j = -σ_j·H + B_j` and `T_j = 3σ_j·H + b0·Q + b1·R`, the
+bad equations of `hj1` are `T_j = ±C_j` (the `ladStep` slots, coefficients 4
+and 2) and those of `hj2` are `C_j = ±(C_j + T_j)` (the `ladDbl` slots,
+coefficients 1 and 3).  Each is ruled out by `nsmul_ne_of_slot` and the
+denominator by `X_ne_of_avoids_zsmul`, with the parity split on `j` selecting
+`a = 3, b = -1` (`σ_j = 1`) or `a = -3, b = 1` (`σ_j = -1`) for `hj1` and
+`a = -1, b = 2` / `a = 1, b = -2` for `hj2`.
+
+Two elaboration traps were found and avoided without touching `maxHeartbeats`
+or `maxRecDepth`:
+
+* the `elm` rows inside the loop body are stated for the `Fin.foldl`
+  accumulator, not for `jlAcc`; unifying the two unfolds the 255-step fold, so
+  `hj2_dx` first rewrites the rows with `jlAcc_eq_foldl` into a `he'` whose
+  accumulator is `jlAcc`;
+* `nsmul_ne_of_slot` yields `Nat`-smul facts while `X_ne_of_avoids_zsmul` wants
+  `ℤ`-smul ones, so each slot fact is converted with
+  `show (k : ℤ) = ((k : Nat) : ℤ) from by norm_num, nsmul_eq_zsmul_int`.
+
+**What remains (G1-c).** The final `elmTo` denominators `hjf1`, `hjf2` and the
+`elmTo` row facts `hjf3`, `hjf4`, then discharging `CompleteWitness`'s
+denominator fields from `exists_goodOffset_famOf`.
 
 ### G2 — T16 concrete witness environment
 
