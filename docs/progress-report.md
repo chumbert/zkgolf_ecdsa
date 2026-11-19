@@ -1,6 +1,6 @@
 # M2 progress report — P-256 constant certificates
 
-Date: 2026-11-17 (session), updated 2026-11-19. Branch: `claude-ecdsa-plan`. Status: **in progress — M5 verified; M2 split into subtasks, Fin 4 case-split verdict done, generator patch in flight**.
+Date: 2026-11-17 (session), updated 2026-11-19. Branch: `claude-ecdsa-plan`. Status: **in progress — M5 previously verified; current experiment S1 done (K modules build and sampled axiom audit); public M2 theorems still pending**.
 
 ## Work reported on 17 November
 
@@ -146,3 +146,97 @@ before reporting — no per-module build table or axiom output was produced, so
 `small_multiples_ne_zero` remains **pending**. M2 pipeline paused; resume by
 respawning the `CertsK*` chain task, then `CertsTab*`, then the final
 `ConstantCerts` assembly + axiom audit.
+
+## 19 November — orchestrated S1 verification
+
+The preceding sections are preserved historical reports. The following results
+were independently checked in the current experiment. The user approved the
+current branch and existing-change edits, the six-step list, and starting S1.
+The frozen list is `.lean-agent/steps.md`; no S2 work has started.
+
+### Environment (`.lean-agent/env.txt`)
+
+```text
+Setup check: PASS — lean-prover replied OK
+Setup session: ses_e0bd2e8fbffetyqxG12cru7WUL
+Previous check: Model unavailable: mistral/mistral-medium-3.5
+Configured lean-prover model: mistral/mistral-medium-2604#high
+Branch override: user approved claude-ecdsa-plan and modification of existing changes
+Thu 19 Nov 14:19:32 UTC 2026
+1715fe608d35e4694230890e96646c1f29fe5606
+claude-ecdsa-plan
+df33b2c0d3c37965e51f1275d7862746a6e4514ec6553bb61567bd54d4f90118  docs/ecdsa-proof-plan.md
+leanprover/lean4:v4.34.0
+opencode v2.0.24
+```
+
+### Verdicts and timing
+
+| Step | Verdict | Sorries in step files | Wall time (end − start) | Retried | Over time limit |
+|---|---|---:|---:|---|---|
+| S1 — K certificate modules | done | 0 | 2575 s (42m55s) | No | Yes, by 12m55s |
+
+Totals: 1 completed step, 0 partial, 0 blocked, 0 retries, 0 S1 sorries.
+Slowest and only executed step: S1. S2–S6 are not executed.
+The wall time includes the subagent run, not the subsequent independent checks.
+
+Independent checks (cached Lake builds, not clean-build benchmarks):
+
+| Command | Wall seconds | Exit |
+|---|---:|---:|
+| `lake build Solution.Projected.Certs.CertsK0` | 4 | 0 |
+| `lake build Solution.Projected.Certs.CertsK1` | 3 | 0 |
+| `lake build Solution.Projected.Certs.CertsK2` | 3 | 0 |
+| `lake build Solution.Projected.Certs.CertsK3` | 4 | 0 |
+| `lake build Solution.Projected.Certs.CertsK4` | 3 | 0 |
+| `lake build Solution.Projected.Certs.CertsK5` | 4 | 0 |
+| `lake env lean .lean-agent/S1/Audit.lean` | 3 | 0 |
+
+The independent build/audit commands total 24 seconds at whole-second timing
+resolution. The subagent separately reported roughly 50 seconds of build time;
+that is not substituted for its measured 42m55s total run.
+
+### Proof scope and axiom evidence
+
+Source review confirms exactly 4199 declarations `kG_ne_1` through `kG_ne_4199`,
+each asserting the corresponding literal natural multiple of `G` is nonzero,
+without additional hypotheses. No Lean source or generator changes were needed;
+the before/after tracked diff and status matched before this report update.
+
+The first and last declaration of each module was audited:
+`kG_ne_1`, `kG_ne_700`, `kG_ne_701`, `kG_ne_1400`, `kG_ne_1401`,
+`kG_ne_2100`, `kG_ne_2101`, `kG_ne_2800`, `kG_ne_2801`, `kG_ne_3500`,
+`kG_ne_3501`, `kG_ne_4199` (all in namespace `Solution.Projected`).
+Every print returned exactly `[propext, Classical.choice, Quot.sound]`.
+The complete output is `.lean-agent/S1/checks.txt`; statement coverage is recorded
+in `.lean-agent/S1/statement-review.txt`.
+
+The S1 sorry scan and forbidden-feature scan were clean. There are **no remaining
+AGENT-SORRY proof markers from S1**. This is not a repository-wide sorry-free claim:
+Lake replayed an existing `honestHint` placeholder warning at
+`Challenge/Instances/ECDSA_P256_Projected/Interface.lean:23`. The sampled K lemmas
+do not depend on `sorryAx` according to their axiom prints.
+
+### Assessment and deviations
+
+- S1 meets its proof/build acceptance conditions; all checked statements are
+  unchanged. No retry is needed for the mathematical result.
+- The subagent exceeded its 30-minute limit and wrote orchestrator-reserved
+  evidence filenames despite its prompt. Its versions were preserved as
+  `agent-*.txt` / `agent-report.md`; the authoritative checks and verdict were
+  produced independently. This is a workflow deviation, not an accepted agent
+  self-verdict.
+- The agent's returned response is saved in `subagent-response.md`. Its claim
+  that the zero-case fix is working is **not established by S1**: the finite
+  assembly theorem has not been built. Its stated next step (tables) is also
+  incorrect for the approved list.
+- The orchestrator's first timing wrapper failed because `/usr/bin/time` is
+  absent; no Lean command ran in that attempt. It was rerun successfully with
+  shell timestamps. The failed wrapper log is retained separately.
+- No clean rebuild, exhaustive per-lemma axiom audit, public small-multiple
+  theorem, table theorem, shift theorem, or aggregate M2 build was verified here.
+  **M2 and the overall sorry-free, axiom-clean circuit goal remain incomplete.**
+
+Next action: S2 — isolate and verify the full `small_multiples_ne_zero` theorem
+without importing the slow table path. Retain `.lean-agent/env.txt`, `steps.md`,
+and all S1 prompts, reports, logs and verdicts to reproduce this experiment.

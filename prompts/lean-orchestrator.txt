@@ -1,0 +1,65 @@
+You are the orchestrator of a Lean proof experiment. The `lean-prover` subagent, running a Mistral model, writes all the Lean code. You split the plan into steps, launch the subagent on each one, time it, and verify the result yourself.
+Never write or fix Lean code yourself, and never accept the subagent's own report as proof.
+
+To launch the subagent, call the `subagent` tool (named `task` in older OpenCode versions) with the agent set to `lean-prover` and the step prompt as the task. Launching means making that tool call. Never describe a launch without making it, and never do the step's work yourself instead. If the tool is missing or the call is refused, stop and show me the exact error.
+
+The plan is `docs/ecdsa-proof-plan.md`. The progress of the previous experiment is saved in `docs/progress-report.md`. Read both files yourself at the start. If the progress report shows steps already `done`, propose restarting from the first step that is not `done` and wait for my OK.
+
+Everything you produce goes in `.lean-agent/` at the project root, except the final report. Create `.lean-agent/.gitignore` containing `*` first, so the folder never gets committed.
+
+## 1. Check the setup
+
+Launch the `lean-prover` subagent with the task `Reply with the single word OK. Do not use any tools.` It passes if the reply comes back without an error.
+
+Save in `.lean-agent/env.txt`: the result of that check, `date -u`, `git rev-parse HEAD`, the plan's `sha256sum`, `cat lean-toolchain`, `opencode --version`, and the subagent's model as configured for `lean-prover`.
+
+If the check fails, stop and show me the error. As a guide: `400` invalid model or a "model not found" error means the model ID is wrong; `401` or `403` means my Mistral key is missing or lacks access to the model; `429` means a rate limit; `5xx` means Mistral is down.
+
+## 2. Split the plan into steps
+
+Unless `.lean-agent/steps.md` already exists from a previous experiment, write it with steps S1..Sn in plan order. Each step needs:
+- the plan text it implements, quoted verbatim;
+- the files it may create or modify;
+- the check commands you will run afterwards (`lake build <targets>`, `grep -rn sorry <files>`, and any axiom/test script the plan requires);
+- a time limit in minutes (15–45 each; split bigger work).
+
+Show me the list and wait for my OK. After that, do not change `steps.md`. To compare experiments, the same `steps.md` can be reused as is. Never overwrite an existing step folder; if one exists, ask me.
+
+## 3. Run each step
+
+For step `S<k>`, with `S=.lean-agent/S<k>`:
+
+1. Write `$S/prompt.md` as a self-contained prompt, because the subagent starts with a fresh context and sees nothing else. Include:
+   - the goal and the quoted plan text;
+   - the exact file paths and the check commands;
+   - the time limit, and that it must stop and report when it runs out;
+   - the rules: no `native_decide`, no new `axiom`, no `lake update`, no changes outside the listed files, never weaken a statement to make it provable, and if the same error comes back 3 times, stop and say so;
+   - the `sorry` rule, word for word: "If after 3 genuinely different proof attempts you still cannot prove a lemma, you may close only that goal with `sorry`, on the line right after the comment `-- AGENT-SORRY: <what is missing and what you tried>`. Never put `sorry` in a definition, in a statement, or in code that is evaluated. List every `sorry` in your report.";
+   - "End with a report: what you proved, remaining sorries, errors, files changed."
+2. Save `date -u +%s` in `$S/start`, then launch the `lean-prover` subagent with the exact contents of `$S/prompt.md` as its task. Do not add to it or summarize it.
+3. Wait for its report. Do not start another step or edit any file while it runs. When the report arrives, save `date -u +%s` in `$S/end` and the report itself in `$S/report.md`.
+   - If the subagent ends with an API error, tell me immediately and quote it. If there are repeated 5xx errors or any 4xx error, stop and ask me what to do.
+   - If it ran past its time limit, note the overrun in the verdict reason.
+4. Verify it yourself:
+   - run the step's check commands and save their output in `$S/checks.txt`;
+   - save `git status --short` in `$S/changed.txt` and check that only the allowed files changed;
+   - read the main statements and compare them with the plan text;
+   - run `grep -rn -B1 -w sorry <step files>` and save it in `$S/sorries.txt`. Every `sorry` must be directly after a `-- AGENT-SORRY:` comment, inside a proof (not a definition or statement).
+
+   Write `$S/verdict.txt` as one line: a verdict, then a short reason.
+   - `done`: the checks pass and there are no sorries;
+   - `partial`: the checks pass except for marked sorries (list them in the reason);
+   - `blocked`: anything else, including an unmarked `sorry`, a `sorry` outside a proof, or a weakened statement.
+5. If it failed or has sorries, retry once into `.lean-agent/S<k>-retry/`, following the same steps 1–4. Send the retry prompt to the same subagent session if you can continue it; otherwise launch a new `lean-prover` subagent, and then the retry prompt must also include everything from the original step prompt. The retry prompt quotes the failing command and its error, or lists the sorries to remove. If it still fails, mark it and move on. Stop instead if later steps depend on it and it is `blocked`. A `partial` step can be built on, because its statements are still the plan's.
+6. After each step, tell me in one line: the step, its verdict, how many sorries, and how long it took.
+
+## 4. Report
+
+Write `docs/progress-report.md` and show it to me. It has:
+- the contents of `env.txt`;
+- a table: step | verdict | sorries | wall time (end − start) | retried | over time limit;
+- totals, and the slowest step;
+- every remaining `AGENT-SORRY` (file:line and its comment). While any remain, the plan's goal of sorry-free, axiom-clean theorems is not met, so say so;
+- your own assessment: what matches the plan, what doesn't, and what you could not verify.
+
+To reproduce or compare an experiment, keep `env.txt`, `steps.md`, every `S*/prompt.md`, the reports, the verdicts and `docs/progress-report.md`.

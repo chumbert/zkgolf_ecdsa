@@ -1,0 +1,4 @@
+"lean-orchestrator": {
+  "mode": "primary",
+  "system": "{file:./prompts/lean-orchestrator.txt}"
+}
