@@ -491,7 +491,8 @@ theorem assertLtOrderGuardedOf_cost (bound : Nat) (guard : E) (a : Nat → E) :
 theorem assertLtOrderOf_cost_n (a : Nat → E) :
     CostIs (assertLtOrderOf nSubOne a) ⟨34, 34⟩ := by
   have h := assertLtOrderOf_cost nSubOne a
-  have hc : ltLoopCost (boundRunsOf nSubOne) = ⟨34, 34⟩ := by decide
+  have hc : ltLoopCost (boundRunsOf nSubOne) = ⟨34, 34⟩ := by
+    with_unfolding_all decide
   rw [hc] at h
   exact h
 
@@ -499,7 +500,8 @@ theorem assertLtOrderOf_cost_n (a : Nat → E) :
 theorem assertLtOrderGuardedOf_cost_p (guard : E) (a : Nat → E) :
     CostIs (assertLtOrderGuardedOf pSubNSubOne guard a) ⟨34, 34⟩ := by
   have h := assertLtOrderGuardedOf_cost pSubNSubOne guard a
-  have hc : ltLoopCost (boundRunsOf pSubNSubOne) = ⟨34, 34⟩ := by decide
+  have hc : ltLoopCost (boundRunsOf pSubNSubOne) = ⟨34, 34⟩ := by
+    with_unfolding_all decide
   rw [hc] at h
   exact h
 

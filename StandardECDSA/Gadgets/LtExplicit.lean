@@ -247,8 +247,8 @@ theorem assertLtOrderOfMain_soundness (bound : Nat)
       rw [h1]
       exact h_assumptions ⟨k, hk⟩
     · rw [dif_neg hk]; simp
-  have hres := assertLtOrderOf_sound bound (ltBit input_var) env i₀
-    (fun k _ => hbits k) hpref hcover h_holds
+  have hres := assertLtOrderOf_sound bound (ltBit input_var) env i₀ h_holds
+    (fun k _ => hbits k) hpref hcover
   refine ⟨?_, ?_⟩
   · -- transport the conclusion to the concrete input
     refine le_trans (le_of_eq (prefVal_congr ?_)) hres
@@ -533,7 +533,7 @@ theorem assertLtOrderGuardedOfMain_soundness (bound : Nat)
       have h1 : Expression.eval env input_var[0] = input[0] := by rw [← h_input]; simp
       rw [h1]; exact hguard
     have hres := assertLtOrderGuardedOf_sound bound input_var[0] (ltBitG input_var) env i₀
-      hg (fun k _ => hbits k) hpref hcover h_holds
+      h_holds hg (fun k _ => hbits k) hpref hcover
     refine le_trans (le_of_eq (prefVal_congr ?_)) hres
     intro j hj
     have hk : 255 - j < 256 := by omega

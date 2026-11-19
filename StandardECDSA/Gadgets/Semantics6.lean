@@ -185,10 +185,10 @@ theorem ltLoopGuarded_rows (env : Environment Fp) (av : Nat → Fp) (a : Nat →
 /-- Soundness of `assertLtOrderOf`: Boolean bits satisfying the rows spell at
 most `bound`. -/
 theorem assertLtOrderOf_sound (bound : Nat) (a : Nat → E) (env : Environment Fp) (n : Nat)
+    (hrows : ConstraintsHold.Soundness env ((assertLtOrderOf bound a).operations n))
     (hbool : ∀ k < 256, Expression.eval env (a k) = 0 ∨ Expression.eval env (a k) = 1)
     (hpref : prefVal (boundNat bound) 256 = bound)
-    (hcover : RunsCover bound 256 (boundRunsOf bound))
-    (hrows : ConstraintsHold.Soundness env ((assertLtOrderOf bound a).operations n)) :
+    (hcover : RunsCover bound 256 (boundRunsOf bound)) :
     prefVal (fun j => aNatOf (fun k => Expression.eval env (a k)) (255 - j)) 256 ≤ bound := by
   refine prefVal_le_of_runs bound _ (fun j _ => aNatOf_le_one _ _) hpref hcover ?_
   intro r hr hrf hpre j h1 h2
@@ -234,11 +234,11 @@ theorem assertLtOrderOf_sound (bound : Nat) (a : Nat → E) (env : Environment F
 satisfying the rows spell at most `bound`. -/
 theorem assertLtOrderGuardedOf_sound (bound : Nat) (guard : E) (a : Nat → E)
     (env : Environment Fp) (n : Nat)
+    (hrows : ConstraintsHold.Soundness env ((assertLtOrderGuardedOf bound guard a).operations n))
     (hg : Expression.eval env guard = 1)
     (hbool : ∀ k < 256, Expression.eval env (a k) = 0 ∨ Expression.eval env (a k) = 1)
     (hpref : prefVal (boundNat bound) 256 = bound)
-    (hcover : RunsCover bound 256 (boundRunsOf bound))
-    (hrows : ConstraintsHold.Soundness env ((assertLtOrderGuardedOf bound guard a).operations n)) :
+    (hcover : RunsCover bound 256 (boundRunsOf bound)) :
     prefVal (fun j => aNatOf (fun k => Expression.eval env (a k)) (255 - j)) 256 ≤ bound := by
   refine prefVal_le_of_runs bound _ (fun j _ => aNatOf_le_one _ _) hpref hcover ?_
   intro r hr hrf hpre j h1 h2
