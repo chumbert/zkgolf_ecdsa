@@ -155,6 +155,27 @@ theorem X_ne_of_avoids {xP yP xQ yQ : Fp} (hP : NS xP yP) (hQ : NS xQ yQ)
   · exact h2 _ h
   · exact h3 _ h
 
+/-- **The bridge, sharp form.**  The three bad equations are tested at their
+*actual* coefficients `a - b`, `b - a`, `a + b`, guarded by the corresponding
+order facts, so a caller only has to rule out the equations that can occur. -/
+theorem X_ne_of_avoids_sharp {xP yP xQ yQ : Fp} (hP : NS xP yP) (hQ : NS xQ yQ)
+    (Hpt : Affine.Point Wp) (a b : Nat) (B0 B1 : Affine.Point Wp)
+    (hPpt : Affine.Point.some xP yP hP = a • Hpt + B0)
+    (hQpt : Affine.Point.some xQ yQ hQ = b • Hpt + B1)
+    (h1 : b ≤ a → (a - b) • Hpt ≠ B1 - B0)
+    (h2 : a ≤ b → (b - a) • Hpt ≠ B0 - B1)
+    (h3 : (a + b) • Hpt ≠ -(B0 + B1)) :
+    xP ≠ xQ := by
+  intro hx
+  rcases X_eq_imp_bad hP hQ Hpt a b B0 B1 hPpt hQpt hx with ⟨hle, h⟩ | ⟨hle, h⟩ | h
+  · exact h1 hle h
+  · exact h2 hle h
+  · exact h3 h
+
+/-- `toAff` is a retraction of `Affine.Point.toProjective`. -/
+theorem toAff_toProjective (X : Affine.Point Wp) : toAff X.toProjective = X :=
+  (WeierstrassCurve.Projective.Point.toAffineAddEquiv params.toMathlib).right_inv X
+
 /-! ## The `GoodOffset` entry point -/
 
 /-- `GoodOffset` gives the projective `Avoids` fact, unfolded. -/

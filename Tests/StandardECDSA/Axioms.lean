@@ -123,6 +123,8 @@ import StandardECDSA.Math.DenominatorBridge
 #print axioms StandardECDSA.Math.nsOfOnCurve
 #print axioms StandardECDSA.Math.nsmul_sub_of_add_eq
 #print axioms StandardECDSA.Math.toAff_nsmul
+#print axioms StandardECDSA.Math.X_ne_of_avoids_sharp
+#print axioms StandardECDSA.Math.toAff_toProjective
 #print axioms StandardECDSA.curvePhase_cost
 #print axioms StandardECDSA.bitsPhase_cost
 #print axioms StandardECDSA.cmpPhase_cost

@@ -325,6 +325,38 @@ closes the gap:
   the `GoodOffset` entry points, including the identification of the offset's
   affine image with `Affine.Point.some H.X H.Y`.
 
+**G1-c — the honest-witness inductions — IN PROGRESS.**
+
+Two further bricks landed in `DenominatorBridge.lean`:
+
+* `X_ne_of_avoids_sharp` — the sharp form of the bridge: the three bad equations
+  are tested at their *actual* coefficients `a - b`, `b - a`, `a + b`, guarded by
+  the corresponding order facts, so a caller only has to rule out the equations
+  that can actually occur (the unguarded `X_ne_of_avoids` demands all three for
+  every `c`, which is unusable when e.g. `b ≤ a` is false);
+* `toAff_toProjective` — `toAff` is a retraction of `Affine.Point.toProjective`,
+  which is what turns a family target `B.toProjective` back into `B`.
+
+**Obstruction found (G1-c, slot indexing).** The per-denominator instantiation
+needs to name the family slot, i.e. `Fintype.equivFin SlotIx s`. That term alone
+exceeds the recursion budget:
+
+```lean
+example : SlotIx ≃ Fin 1293 := Fintype.equivFin SlotIx
+-- error: maximum recursion depth has been reached
+```
+
+`SlotIx` is a six-way nested sum, so `Fintype.equivFin` has to compute
+`Fintype.card SlotIx` through the instance and the `Fin`/`Prod`/`Sum` instances
+recurse past the default `maxRecDepth`. `famOf_m` avoids this only because it
+rewrites `Fintype.card_sum`/`card_prod`/`card_fin` explicitly rather than
+evaluating the instance. Raising `maxRecDepth` is forbidden by the task rules, so
+the fix is structural: give `famOf` an **explicit** index equivalence
+`slotEquiv : SlotIx ≃ Fin 1293` built by hand from `Equiv.sumCongr` /
+`Equiv.prodCongr` / `finCongr` (cheap, no instance search), and index the family
+by `slotEquiv` instead of `Fintype.equivFin`. `famOf_m` then becomes `rfl`-ish and
+the slot lemmas `famOf_coeff_apply` / `famOf_target_apply` become `rfl`.
+
 **What remains (G1-c).** The two honest-witness inductions
 `P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)` over the 128 fixed-base
 windows and the 256 ladder steps, instantiating `X_ne_of_avoids` once per
