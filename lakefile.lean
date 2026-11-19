@@ -21,4 +21,7 @@ lean_lib Solution
 lean_lib StandardECDSA
 
 lean_exe standardEcdsaCheck where
-  root := `StandardECDSA.Check
+  root := `StandardECDSA.CheckMain
+
+lean_exe standardEcdsaTests where
+  root := `Tests.StandardECDSA.Main
