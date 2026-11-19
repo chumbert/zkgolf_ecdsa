@@ -441,4 +441,18 @@ theorem main_accepts_iff_standard (inp : Var Input Fp) (penv : ProverEnvironment
   main_accepts_iff_standard_of_nil inp penv n hw h
     (main_shallowLookups_nil inp n) (main_subcircuits_nil inp n)
 
+/-- An operation list with no subcircuits is `SubcircuitsConsistent` at every
+offset. -/
+theorem subcircuitsConsistent_of_subcircuits_nil {ops : Operations Fp} {n : ℕ}
+    (h : ops.subcircuits = []) : ops.SubcircuitsConsistent n := by
+  induction ops generalizing n with
+  | nil => trivial
+  | cons op ops ih =>
+    cases op with
+    | witness m c => exact ⟨trivial, ih (by simpa [Operations.subcircuits] using h)⟩
+    | assert e => exact ⟨trivial, ih (by simpa [Operations.subcircuits] using h)⟩
+    | lookup l => exact ⟨trivial, ih (by simpa [Operations.subcircuits] using h)⟩
+    | interact i => exact ⟨trivial, ih (by simpa [Operations.subcircuits] using h)⟩
+    | subcircuit s => simp [Operations.subcircuits] at h
+
 end StandardECDSA

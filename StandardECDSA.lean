@@ -18,3 +18,4 @@ import StandardECDSA.Witness.FamilyInvariance
 import StandardECDSA.Witness.CompleteWitnessOfULWC
 import StandardECDSA.Witness.LadderWitness
 import StandardECDSA.Witness.MainCompleteness
+import StandardECDSA.Witness.MainCompletenessStandard

@@ -131,4 +131,16 @@ theorem famOf_congr (env1 env2 : Environment Fp) (eb rb sb : Vector E 256)
   funext i
   exact h i
 
+/-- Every target of the family depends only on the bit wires and the two points. -/
+theorem targetOf_congr_pts (env : Environment Fp) (eb rb sb : Vector E 256)
+    {Qpt Qpt' Rpt Rpt' : Affine.Point Wp} (hQ : Qpt = Qpt') (hR : Rpt = Rpt') :
+    targetOf env eb rb sb Qpt Rpt = targetOf env eb rb sb Qpt' Rpt' := by
+  rw [hQ, hR]
+
+/-- **The bad-equation family depends only on the bit wires and the two points.** -/
+theorem famOf_congr_pts (env : Environment Fp) (eb rb sb : Vector E 256)
+    {Qpt Qpt' Rpt Rpt' : Affine.Point Wp} (hQ : Qpt = Qpt') (hR : Rpt = Rpt') :
+    famOf env eb rb sb Qpt Rpt = famOf env eb rb sb Qpt' Rpt' := by
+  rw [hQ, hR]
+
 end StandardECDSA

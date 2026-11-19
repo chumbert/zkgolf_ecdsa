@@ -28,6 +28,7 @@ import StandardECDSA.Witness.CompleteWitness
 import StandardECDSA.Witness.InputEmbedding
 import StandardECDSA.Cost
 import StandardECDSA.NoLookupSub
+import StandardECDSA.Witness.MainCompletenessStandard
 import StandardECDSA.Math.SignatureEquation
 import StandardECDSA.Math.OffsetCandidates
 import StandardECDSA.Math.OffsetFamily
@@ -56,6 +57,14 @@ import StandardECDSA.Witness.MainCompleteness
 
 #print axioms StandardECDSA.main_soundness
 #print axioms StandardECDSA.main_complete_with_seed
+#print axioms StandardECDSA.main_completeness_of_standard
+#print axioms StandardECDSA.main_completeWitness_of_standard
+#print axioms StandardECDSA.main_honestData
+#print axioms StandardECDSA.main_referenceData
+#print axioms StandardECDSA.main_famOf_eq
+#print axioms StandardECDSA.famOf_congr_pts
+#print axioms StandardECDSA.targetOf_congr_pts
+#print axioms StandardECDSA.subcircuitsConsistent_of_subcircuits_nil
 #print axioms StandardECDSA.main_completeness
 #print axioms StandardECDSA.main_accepts_iff_standard
 #print axioms StandardECDSA.main_accepts_iff_standard_of_nil

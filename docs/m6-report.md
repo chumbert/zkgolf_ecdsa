@@ -692,23 +692,42 @@ that each large defeq check gets its own 200 000-heartbeat budget:
 Axiom audit: 212 roots, all `[propext, Classical.choice, Quot.sound]`.
 Cost unchanged: 4628 allocations + 4634 rows = 9262.
 
-**Remaining gap.** `main_completeness_of_standard`
-(`standardVerify … → ∃ env, ConstraintsHold.Completeness env ((main inp).operations n)`,
-no `hwit`) still needs the *offset fixed point* discharged: `CompleteWitness_of_ulwc`
-takes `hgood : GoodOffset H hH (famOf env …)` as a hypothesis, and `env` is built
-from `generateSeed … fam hm` with `H = offsetPt (findGoodOffset fam hm).val`, so
-`fam` must be a fixed point of `famOf`.  The planned construction is
+**Gap CLOSED.** `main_completeness_of_standard` is now proved, with no `hwit`
+hypothesis:
 
-1. `fam0` vacuous (`m = 0`), `env0 := (main inp).proverEnvironment (seedHint (generateSeed … fam0 hm0)) init`;
-2. `fam* := famOf env0.toEnvironment (fbEb inp n) (fbRb inp n) (fbSb inp n) Qpt Rpt`
-   (`fam*.m = 1293 < 1294` by `famOf_m`);
-3. `env := (main inp).proverEnvironment (seedHint (generateSeed … fam* hm*)) init`;
-4. `famOf env … = fam*` by `famOf_congr` (the bit wires are `bitsOf E`, `bitsOf r.val`,
-   `bitsOf (n - s.val)` — input-determined, hence equal for `env` and `env0`);
-5. `GoodOffset (affinePt (offsetPt (findGoodOffset fam* hm*).val)) … fam*` from
-   `findGoodOffset_spec` + `generateSeed_offsetPt_toMathlib` +
-   `generateSeed_offsetPt_Z_ne_zero`.
+```lean
+theorem main_completeness_of_standard (pkX pkY digestLo digestHi r s : K)
+    (hstd : standardVerify pkX pkY digestLo digestHi r s)
+    (hlo : digestLo.val < 2 ^ 128) (hhi : digestHi.val < 2 ^ 128) :
+    ∃ env : ProverEnvironment Fp,
+      ConstraintsHold.Completeness env ((main inputVar).operations 6)
+```
 
-Steps 1–5 additionally need a `famOf` congruence in `Qpt`/`Rpt` (the two
-`Affine.Point.some` terms mention `env`, so `Qpt`/`Rpt` must be transported from
-`env0` to `env` by `some_congr` + proof irrelevance before `famOf_congr` applies).
+The offset fixed point is discharged exactly as planned, in
+`StandardECDSA/Witness/MainCompletenessStandard.lean`:
+
+1. `vacuousFamily` (`m = 0`) and `env0 := (main inputVar).proverEnvironment
+   (seedHint (generateSeed … vacuousFamily vacuousFamily_m)) [pkX, …, s]`
+   (`main_referenceData`);
+2. `fam := famOf env0.toEnvironment (fbEb inputVar 6) (fbRb inputVar 6)
+   (fbSb inputVar 6) Qpt0 Rpt0`, with `fam.m < 1294` by
+   `famOf_m_lt_candidates`;
+3. `env := (main inputVar).proverEnvironment (seedHint (generateSeed … fam hm))
+   [pkX, …, s]`;
+4. `famOf env … = fam` by `famOf_congr_pts` (transporting `Qpt`/`Rpt` from `env`
+   to `env0` with `some_congr` and the `eval_shR_x`/`eval_shR_y` pins) composed
+   with `main_famOf_eq` (`famOf_congr` on the input-determined bit wires);
+5. `GoodOffset (Seed.H g) hH (famOf env …)` from `generateSeed_goodOffset`
+   after rewriting with step 4;
+6. `main_ulwc_exists` + `can_replace_usesLocalWitnessesCompleteness` give
+   `UsesLocalWitnessesCompleteness`, `CompleteWitness_of_ulwc` gives
+   `CompleteWitness`, and `main_complete_with_seed` gives
+   `ConstraintsHold.Completeness`.
+
+Supporting lemmas added: `famOf_congr_pts`, `targetOf_congr_pts`
+(`Witness/FamilyInvariance.lean`) and
+`subcircuitsConsistent_of_subcircuits_nil` (`NoLookupSub.lean`).
+
+Final state: axiom audit **220 roots**, all `[propext, Classical.choice,
+Quot.sound]`; cost unchanged at **4628 allocations + 4634 rows = 9262**;
+`lake exe standardEcdsaTests` 46/46; contract and matrix checks pass.
