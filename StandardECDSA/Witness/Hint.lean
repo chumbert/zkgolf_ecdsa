@@ -162,6 +162,32 @@ theorem seedCells_getElem?_t (s : Seed) (j : Fin 256) :
   rw [h3, show seedBitT s j.val = s.tBits j from by
     simp only [seedBitT, dite_eq_left j.isLt]]
 
+/-! ## The cells as `getD` values -/
+
+theorem seedCells_getD_ry (s : Seed) : (seedCells s).getD 0 0 = s.ry := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_ry]; rfl
+
+theorem seedCells_getD_hx (s : Seed) : (seedCells s).getD 1 0 = s.hx := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_hx]; rfl
+
+theorem seedCells_getD_hy (s : Seed) : (seedCells s).getD 2 0 = s.hy := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_hy]; rfl
+
+theorem seedCells_getD_ov (s : Seed) : (seedCells s).getD 3 0 = s.overflow := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_ov]; rfl
+
+theorem seedCells_getD_digest (s : Seed) (j : Fin 256) :
+    (seedCells s).getD (4 + 3 * j.val) 0 = s.digestBits j := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_digest]; rfl
+
+theorem seedCells_getD_r (s : Seed) (j : Fin 256) :
+    (seedCells s).getD (5 + 3 * j.val) 0 = s.rBits j := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_r]; rfl
+
+theorem seedCells_getD_t (s : Seed) (j : Fin 256) :
+    (seedCells s).getD (6 + 3 * j.val) 0 = s.tBits j := by
+  rw [List.getD_eq_getElem?_getD, seedCells_getElem?_t]; rfl
+
 /-! ## The concrete hint provider -/
 
 /-- The concrete `ProverHint` of a seed: the `hintKey` table has one row per hint
