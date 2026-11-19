@@ -9,3 +9,4 @@ import StandardECDSA.Witness.CompleteWitness
 import StandardECDSA.Witness.InputEmbedding
 import StandardECDSA.Phases.HonestFixedBase
 import StandardECDSA.Phases.HonestLadderPhase
+import StandardECDSA.Phases.HonestLadderJoint

@@ -212,6 +212,12 @@ REQUIRED = {
     'StandardECDSA.Phases.elmTo_soundness_of_ulwc',
     'StandardECDSA.Phases.jointLadderFinal_soundness_of_ulwc',
     'StandardECDSA.Phases.jointLadder_soundness_of_ulwc',
+    'StandardECDSA.elmXu_group_of_rows',
+    'StandardECDSA.elm_rows123_of_ulwc',
+    'StandardECDSA.hj1_dx_of_ladInv',
+    'StandardECDSA.hj2_dx_of_ladInv',
+    'StandardECDSA.jointLadderBody_ladInv_step',
+    'StandardECDSA.jointLadder_ladInv_of_ulwc',
 }
 
 

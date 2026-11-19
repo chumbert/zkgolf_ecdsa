@@ -46,6 +46,7 @@ import StandardECDSA.Phases.HonestShifted
 import StandardECDSA.HonestLadder
 import StandardECDSA.Phases.HonestFixedBase
 import StandardECDSA.Phases.HonestLadderPhase
+import StandardECDSA.Phases.HonestLadderJoint
 
 /-! ## End-to-end -/
 
@@ -255,3 +256,9 @@ import StandardECDSA.Phases.HonestLadderPhase
 #print axioms StandardECDSA.Phases.elmTo_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.jointLadderFinal_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.jointLadder_soundness_of_ulwc
+#print axioms StandardECDSA.elmXu_group_of_rows
+#print axioms StandardECDSA.elm_rows123_of_ulwc
+#print axioms StandardECDSA.hj1_dx_of_ladInv
+#print axioms StandardECDSA.hj2_dx_of_ladInv
+#print axioms StandardECDSA.jointLadderBody_ladInv_step
+#print axioms StandardECDSA.jointLadder_ladInv_of_ulwc
