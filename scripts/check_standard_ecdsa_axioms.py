@@ -249,6 +249,10 @@ REQUIRED = {
     'StandardECDSA.hs5_of_ulwc',
     'StandardECDSA.shiftedTables_soundness_of_main',
     'StandardECDSA.shiftedTables_htab_of_main',
+    "StandardECDSA.main_shifted_denominators",
+    "StandardECDSA.CompleteWitness_of_ulwc_core",
+    "StandardECDSA.main_ladder_denominators",
+    "StandardECDSA.CompleteWitness_of_ulwc",
 }
 
 

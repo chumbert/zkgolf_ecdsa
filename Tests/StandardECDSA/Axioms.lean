@@ -50,6 +50,7 @@ import StandardECDSA.Phases.HonestLadderJoint
 import StandardECDSA.Witness.HonestShiftedFields
 import StandardECDSA.Witness.HonestLadderFinal
 import StandardECDSA.Witness.HonestLadderDenominators
+import StandardECDSA.Witness.MainCompleteness
 
 /-! ## End-to-end -/
 
@@ -294,3 +295,7 @@ import StandardECDSA.Witness.HonestLadderDenominators
 #print axioms StandardECDSA.main_ulwc_jointLadder
 #print axioms StandardECDSA.jlAcc0_neg
 #print axioms StandardECDSA.negPt_pair
+#print axioms StandardECDSA.main_shifted_denominators
+#print axioms StandardECDSA.CompleteWitness_of_ulwc_core
+#print axioms StandardECDSA.main_ladder_denominators
+#print axioms StandardECDSA.CompleteWitness_of_ulwc
