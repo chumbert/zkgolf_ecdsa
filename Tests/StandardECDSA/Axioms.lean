@@ -44,6 +44,7 @@ import StandardECDSA.WitgenCausality
 import StandardECDSA.Phases.HonestDenominators
 import StandardECDSA.Phases.HonestShifted
 import StandardECDSA.HonestLadder
+import StandardECDSA.Phases.HonestFixedBase
 
 /-! ## End-to-end -/
 
@@ -244,3 +245,9 @@ import StandardECDSA.HonestLadder
 #print axioms StandardECDSA.ht_of_embedding
 #print axioms StandardECDSA.hH_of_ulwc
 #print axioms StandardECDSA.hR_of_generateSeed
+#print axioms StandardECDSA.Phases.fixedBase_fbInv
+#print axioms StandardECDSA.Phases.main_ulwc_fixedBase
+#print axioms StandardECDSA.Phases.fixedBase_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.fixedBase_fbInv_of_ulwc
+#print axioms StandardECDSA.Phases.hfb_of_ulwc
+#print axioms StandardECDSA.Phases.hfb0_of_ulwc

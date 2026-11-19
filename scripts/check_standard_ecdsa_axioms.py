@@ -203,6 +203,12 @@ REQUIRED = {
     'StandardECDSA.ht_of_embedding',
     'StandardECDSA.hH_of_ulwc',
     'StandardECDSA.hR_of_generateSeed',
+    'StandardECDSA.Phases.fixedBase_fbInv',
+    'StandardECDSA.Phases.main_ulwc_fixedBase',
+    'StandardECDSA.Phases.fixedBase_soundness_of_ulwc',
+    'StandardECDSA.Phases.fixedBase_fbInv_of_ulwc',
+    'StandardECDSA.Phases.hfb_of_ulwc',
+    'StandardECDSA.Phases.hfb0_of_ulwc',
 }
 
 
