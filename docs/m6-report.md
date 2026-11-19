@@ -676,3 +676,39 @@ pass; contract verifier passes (including the two new `example`s for
   circuit against an independent standard verifier on 46 fixtures; the matrix
   export is validated independently but is documented as tested tooling.
 * **Remaining assumptions:** G1 and G2 above (G3 is closed).
+
+## G2-c progress (round 39)
+
+`CompleteWitness_of_ulwc` now proves **all 30 fields** of `CompleteWitness`
+(no `LadderWitness` hypothesis).  The assembly is split across three modules so
+that each large defeq check gets its own 200 000-heartbeat budget:
+
+| module | contents |
+| --- | --- |
+| `Witness/CompleteWitnessOfULWC.lean` | `main_shifted_denominators` (`hshy`, `hs1`..`hs5`), `CompleteWitness_of_ulwc_core` (24 fields + `LadderWitness` hypothesis) |
+| `Witness/LadderWitness.lean` | `main_ladder_denominators` (`hj1`, `hj2`, `hjf1`..`hjf4`) from `jointLadder_denominators_of_ulwc` |
+| `Witness/MainCompleteness.lean` | `CompleteWitness_of_ulwc` — all 30 fields |
+
+Axiom audit: 212 roots, all `[propext, Classical.choice, Quot.sound]`.
+Cost unchanged: 4628 allocations + 4634 rows = 9262.
+
+**Remaining gap.** `main_completeness_of_standard`
+(`standardVerify … → ∃ env, ConstraintsHold.Completeness env ((main inp).operations n)`,
+no `hwit`) still needs the *offset fixed point* discharged: `CompleteWitness_of_ulwc`
+takes `hgood : GoodOffset H hH (famOf env …)` as a hypothesis, and `env` is built
+from `generateSeed … fam hm` with `H = offsetPt (findGoodOffset fam hm).val`, so
+`fam` must be a fixed point of `famOf`.  The planned construction is
+
+1. `fam0` vacuous (`m = 0`), `env0 := (main inp).proverEnvironment (seedHint (generateSeed … fam0 hm0)) init`;
+2. `fam* := famOf env0.toEnvironment (fbEb inp n) (fbRb inp n) (fbSb inp n) Qpt Rpt`
+   (`fam*.m = 1293 < 1294` by `famOf_m`);
+3. `env := (main inp).proverEnvironment (seedHint (generateSeed … fam* hm*)) init`;
+4. `famOf env … = fam*` by `famOf_congr` (the bit wires are `bitsOf E`, `bitsOf r.val`,
+   `bitsOf (n - s.val)` — input-determined, hence equal for `env` and `env0`);
+5. `GoodOffset (affinePt (offsetPt (findGoodOffset fam* hm*).val)) … fam*` from
+   `findGoodOffset_spec` + `generateSeed_offsetPt_toMathlib` +
+   `generateSeed_offsetPt_Z_ne_zero`.
+
+Steps 1–5 additionally need a `famOf` congruence in `Qpt`/`Rpt` (the two
+`Affine.Point.some` terms mention `env`, so `Qpt`/`Rpt` must be transported from
+`env0` to `env` by `some_congr` + proof irrelevance before `famOf_congr` applies).
