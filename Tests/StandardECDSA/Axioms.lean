@@ -60,7 +60,8 @@ import StandardECDSA.Phases.Cost
 #print axioms StandardECDSA.Math.exists_goodOffset
 #print axioms StandardECDSA.Math.findGoodOffset_spec
 #print axioms StandardECDSA.Math.famOf_m
-#print axioms StandardECDSA.Math.famOf_m_gt_1039
+#print axioms StandardECDSA.Math.famOf_m_lt_candidates
+#print axioms StandardECDSA.Math.exists_goodOffset_famOf
 #print axioms StandardECDSA.Math.coeffOf_pos
 #print axioms StandardECDSA.Math.coeffOf_lt
 

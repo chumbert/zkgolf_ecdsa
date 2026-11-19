@@ -139,30 +139,30 @@ theorem p_lt_n_add_n : p < n + n := by decide
 
 /-- The generated overflow cell. -/
 theorem generateSeed_overflow_val (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (generateSeed pkX pkY digestLo digestHi r s fam hm).overflow
       = ((overflowOf (affineX (stdV { X := pkX, Y := pkY } r s
             (digestOf digestLo digestHi))).val r.val : Nat) : K) := rfl
 
 /-- The generated `r` bits. -/
 theorem generateSeed_rBits (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (generateSeed pkX pkY digestLo digestHi r s fam hm).rBits = bitsOf r.val := rfl
 
 /-- The generated `t` bits. -/
 theorem generateSeed_tBits (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (generateSeed pkX pkY digestLo digestHi r s fam hm).tBits = bitsOf (n - s.val) := rfl
 
 /-- The generated digest bits. -/
 theorem generateSeed_digestBits (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (generateSeed pkX pkY digestLo digestHi r s fam hm).digestBits
       = bitsOf (digestOf digestLo digestHi) := rfl
 
 /-- The generated seed's scalar facts. -/
 theorem generateSeed_scalarFacts (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040)
+    (fam : BadFamily Grp) (hm : fam.m < 1290)
     (hrn : r.val < n) (hs0 : 0 < s.val)
     (hlo : digestLo.val < 2 ^ 128) (hhi : digestHi.val < 2 ^ 128) :
     ScalarFacts (generateSeed pkX pkY digestLo digestHi r s fam hm)
@@ -207,14 +207,14 @@ theorem generateSeed_scalarFacts (pkX pkY digestLo digestHi r s : K)
 
 /-- The generated seed's offset is on the curve. -/
 theorem generateSeed_H_onCurve (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (Seed.H (generateSeed pkX pkY digestLo digestHi r s fam hm)).IsOnCurve params :=
   affinePt_isOnCurve (generateSeed_offsetPt_on_curve pkX pkY digestLo digestHi r s fam hm)
     (generateSeed_offsetPt_Z_ne_zero pkX pkY digestLo digestHi r s fam hm)
 
 /-- The generated seed's offset avoids every bad equation. -/
 theorem generateSeed_goodOffset (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040)
+    (fam : BadFamily Grp) (hm : fam.m < 1290)
     (hH : (Seed.H (generateSeed pkX pkY digestLo digestHi r s fam hm)).IsOnCurve params) :
     GoodOffset (Seed.H (generateSeed pkX pkY digestLo digestHi r s fam hm)) hH fam := by
   have hZ := generateSeed_offsetPt_Z_ne_zero pkX pkY digestLo digestHi r s fam hm
@@ -235,7 +235,7 @@ theorem generateSeed_goodOffset (pkX pkY digestLo digestHi r s : K)
 
 /-- **The generated seed is admissible.** -/
 theorem generateSeed_complete (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040)
+    (fam : BadFamily Grp) (hm : fam.m < 1290)
     (hstd : standardVerify pkX pkY digestLo digestHi r s)
     (hlo : digestLo.val < 2 ^ 128) (hhi : digestHi.val < 2 ^ 128) :
     Admissible (generateSeed pkX pkY digestLo digestHi r s fam hm)
@@ -251,14 +251,14 @@ theorem generateSeed_complete (pkX pkY digestLo digestHi r s : K)
 /-- The seed's signature point is the affine point of the standard verification
 point `V`. -/
 theorem generateSeed_R_eq (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     Seed.R (generateSeed pkX pkY digestLo digestHi r s fam hm)
         (affineX (stdV { X := pkX, Y := pkY } r s (digestOf digestLo digestHi)))
       = affinePt (stdV { X := pkX, Y := pkY } r s (digestOf digestLo digestHi)) := rfl
 
 /-- The seed's signature point is on the curve for standard-valid input. -/
 theorem generateSeed_R_onCurve (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040)
+    (fam : BadFamily Grp) (hm : fam.m < 1290)
     (hstd : standardVerify pkX pkY digestLo digestHi r s) :
     (Seed.R (generateSeed pkX pkY digestLo digestHi r s fam hm)
         (affineX (stdV { X := pkX, Y := pkY } r s (digestOf digestLo digestHi)))).IsOnCurve
@@ -274,7 +274,7 @@ theorem generateSeed_R_onCurve (pkX pkY digestLo digestHi r s : K)
 
 /-- The seed's signature point reduces to `r` modulo the group order. -/
 theorem generateSeed_R_x (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040)
+    (fam : BadFamily Grp) (hm : fam.m < 1290)
     (hstd : standardVerify pkX pkY digestLo digestHi r s) :
     (Seed.R (generateSeed pkX pkY digestLo digestHi r s fam hm)
         (affineX (stdV { X := pkX, Y := pkY } r s (digestOf digestLo digestHi)))).X.val % n

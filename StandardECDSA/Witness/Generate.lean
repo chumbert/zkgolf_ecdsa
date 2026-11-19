@@ -52,7 +52,7 @@ def offsetPt (k : Nat) : ProjectivePoint K := FixedTables.mulG (k + 1)
 /-- **The honest seed generator.**  All 772 hint cells are computed from the six
 external inputs and the selected offset. -/
 noncomputable def generateSeed (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) : Seed :=
+    (fam : BadFamily Grp) (hm : fam.m < 1290) : Seed :=
   let Q : AffinePoint K := { X := pkX, Y := pkY }
   let E := digestOf digestLo digestHi
   let V := stdV Q r s E
@@ -67,27 +67,27 @@ noncomputable def generateSeed (pkX pkY digestLo digestHi r s : K)
 
 /-- The offset index chosen by the generator. -/
 theorem generateSeed_index_lt (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
-    (findGoodOffset fam hm).val < 1040 :=
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
+    (findGoodOffset fam hm).val < 1290 :=
   (findGoodOffset fam hm).isLt
 
 /-- The offset point chosen by the generator is finite. -/
 theorem generateSeed_offsetPt_Z_ne_zero (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (offsetPt (findGoodOffset fam hm).val).Z ≠ 0 := by
   have hk := generateSeed_index_lt pkX pkY digestLo digestHi r s fam hm
-  have hn := thousand_forty_lt_n
+  have hn := thousand_two_hundred_ninety_lt_n
   exact FixedTables.mulG_Z_ne_zero (by omega) (by omega)
 
 /-- The offset point chosen by the generator is on the curve. -/
 theorem generateSeed_offsetPt_on_curve (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (offsetPt (findGoodOffset fam hm).val).IsOnCurve params :=
   FixedTables.mulG_on_curve _
 
 /-- The offset point chosen by the generator is the candidate `[k+1]G`. -/
 theorem generateSeed_offsetPt_toMathlib (pkX pkY digestLo digestHi r s : K)
-    (fam : BadFamily Grp) (hm : fam.m < 1040) :
+    (fam : BadFamily Grp) (hm : fam.m < 1290) :
     (offsetPt (findGoodOffset fam hm).val).toMathlibPoint params
         (generateSeed_offsetPt_on_curve pkX pkY digestLo digestHi r s fam hm)
       = offsetCandidate (findGoodOffset fam hm) := by

@@ -43,7 +43,8 @@ REQUIRED = {
     'StandardECDSA.Math.exists_goodOffset',
     'StandardECDSA.Math.findGoodOffset_spec',
     'StandardECDSA.Math.famOf_m',
-    'StandardECDSA.Math.famOf_m_gt_1039',
+    'StandardECDSA.Math.famOf_m_lt_candidates',
+    'StandardECDSA.Math.exists_goodOffset_famOf',
     'StandardECDSA.Math.coeffOf_pos',
     'StandardECDSA.Math.coeffOf_lt',
     # witness generation

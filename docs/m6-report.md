@@ -202,14 +202,24 @@ green, axiom-clean):
   `BadFamily` requires;
 * `famOf`, the concrete `BadFamily Grp`, and `famOf_m : (famOf …).m = 1289`.
 
-**Finding 1 — the plan's slot budget is too small.** The plan budgets 1,039
-slots and 1,040 candidates `[k+1]G`. The circuit actually needs **1,289** slots
-(`famOf_m`), because the plan's count omits the 128 fixed-base window
-denominators (`fbWin`, 256 slots). `famOf_m_gt_1039` records the gap. The
-candidate set must be enlarged to at least 1,290 points before
-`exists_goodOffset` can be instantiated; the 1,040 bound in
-`Math/OffsetCandidates.lean` and in `Witness.generateSeed` is therefore too
-tight.
+**Finding 1 — the plan's slot budget was too small — RESOLVED.** The plan
+budgets 1,039 slots and 1,040 candidates `[k+1]G`. The circuit actually needs
+**1,289** slots (`famOf_m`), because the plan's count omits the 128 fixed-base
+window denominators (`fbWin`, 256 slots). The candidate set has been enlarged
+to `Fin 1290 = 1,289 + 1` (the tight bound) throughout:
+
+* `Math/OffsetCandidates.lean`: `offsetCandidate : Fin 1290 → Grp`,
+  `thousand_two_hundred_ninety_lt_n : 1290 < n`,
+  `offsetCandidate_injective` re-proved, `exists_goodOffset` /
+  `exists_goodOffset_nat` / `findGoodOffset` re-bounded to `m < 1290`;
+* `Math/OffsetFamily.lean`: `famOf_m_lt_candidates : (famOf …).m < 1290` and
+  the instantiated existence theorem
+  `exists_goodOffset_famOf : ∃ k : Fin 1290, (famOf …).Avoids (offsetCandidate k)`;
+* `Witness/Generate.lean`, `Witness/Correctness.lean`: every `hm : fam.m < 1040`
+  is now `hm : fam.m < 1290`;
+* `StandardECDSA/Check.lean`: the executable search bound is 1290.
+
+The 1,039 fiction is gone: the count is stated as 1,289 everywhere.
 
 **Finding 2 — one genuinely input-only exception.** The final `elmTo`
 denominator `x(C_255) - x(-ep)` yields `2H = -(B_255 + [E]G)` (coefficient 2,
