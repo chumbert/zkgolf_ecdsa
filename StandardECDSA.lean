@@ -6,3 +6,4 @@ import StandardECDSA.Math.DenominatorBridge
 import StandardECDSA.Witness.Hint
 import StandardECDSA.Witness.HintBridge
 import StandardECDSA.Witness.CompleteWitness
+import StandardECDSA.Witness.InputEmbedding

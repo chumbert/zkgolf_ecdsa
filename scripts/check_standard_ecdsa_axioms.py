@@ -196,6 +196,13 @@ REQUIRED = {
     'StandardECDSA.hb_of_ulwc',
     'StandardECDSA.hbR_of_ulwc',
     'StandardECDSA.hbT_of_ulwc',
+    # input embedding and value fields (gap G2)
+    'StandardECDSA.InputEmbedding',
+    'StandardECDSA.hQ_of_embedding',
+    'StandardECDSA.hr_of_embedding',
+    'StandardECDSA.ht_of_embedding',
+    'StandardECDSA.hH_of_ulwc',
+    'StandardECDSA.hR_of_generateSeed',
 }
 
 

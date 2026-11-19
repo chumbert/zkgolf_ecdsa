@@ -25,6 +25,7 @@ Task T20.
 
 import StandardECDSA.Main
 import StandardECDSA.Witness.CompleteWitness
+import StandardECDSA.Witness.InputEmbedding
 import StandardECDSA.Cost
 import StandardECDSA.NoLookupSub
 import StandardECDSA.Math.SignatureEquation
@@ -237,3 +238,9 @@ import StandardECDSA.HonestLadder
 #print axioms StandardECDSA.hb_of_ulwc
 #print axioms StandardECDSA.hbR_of_ulwc
 #print axioms StandardECDSA.hbT_of_ulwc
+#print axioms StandardECDSA.InputEmbedding
+#print axioms StandardECDSA.hQ_of_embedding
+#print axioms StandardECDSA.hr_of_embedding
+#print axioms StandardECDSA.ht_of_embedding
+#print axioms StandardECDSA.hH_of_ulwc
+#print axioms StandardECDSA.hR_of_generateSeed
