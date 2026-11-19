@@ -382,6 +382,35 @@ the fix is structural: give `famOf` an **explicit** index equivalence
 by `slotEquiv` instead of `Fintype.equivFin`. `famOf_m` then becomes `rfl`-ish and
 the slot lemmas `famOf_coeff_apply` / `famOf_target_apply` become `rfl`.
 
+**G1-c inductions — two concrete blockers found (round 24).**
+
+Attempting `fbWin_dx` surfaced two mechanical obstacles that must be cleared
+before the induction can be written:
+
+1. **`fixedTables` is namespace-qualified.** `StandardECDSA.Math.FixedTables.fixedTables`
+   is *not* reachable as `fixedTables` from `open StandardECDSA.Math` alone;
+   `FixedBaseSemantics.lean` works only because it has
+   `open StandardECDSA.Math.FixedTables` (line 31). Without that `open`, every
+   occurrence of `fixedTables` in a new file is silently **auto-bound as an
+   implicit variable**, which produces a cascade of bogus "type mismatch" and
+   "did not find an occurrence" errors. Any new file touching the fixed-base
+   tables must `open StandardECDSA.Math.FixedTables`.
+
+2. **`BadFamily.toAffine` is semireducible.** `nsmul_ne_of_slot` is stated about
+   `fam.toAffine`, and `BadFamily.toAffine_coeff` / `toAffine_target` are `rfl`
+   lemmas, but after `set`/`obtain` steps the goal is no longer type-correct at
+   `implicit` transparency, so `simp only [BadFamily.toAffine_coeff, …]` reports
+   "made no progress". The fix is to state the slot facts about
+   `(famOf …).toAffine` *before* any `set`/`obtain`, or to add explicit
+   `show` steps that pin the transparency level.
+
+With those two cleared, the `fbWin_dx` proof shape is settled: `hfbMux`
+(`fbMux eb fixedTables ⟨k,hk⟩ = muxConst4W … (fbTab k hk)`, by
+`simp only [fbMux]` then `rw [fixedTables_getD_row k hk]`) bridges the mux
+output, `muxConst4W_tablePt` gives `T_k = tablePt k d_k`, `fbInv` gives
+`A_k = [1]H + B₁`, and `X_ne_of_avoids_sharp` with `a = 0`, `b = 1` closes it
+against slots `(k, false)` and `(k, true)`.
+
 **What remains (G1-c).** The two honest-witness inductions
 `P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)` over the 128 fixed-base
 windows and the 256 ladder steps, instantiating `X_ne_of_avoids` once per
