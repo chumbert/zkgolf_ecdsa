@@ -282,7 +282,7 @@ def run (args : List String) : IO UInt32 := do
     let some (inp, ry, overflow, E, r) := testVector
       | IO.println "export: failed to build the test vector"; return 1
     let t := n - inp.s.val
-    let some k := searchH ops inp ry overflow E r t 1290
+    let some k := searchH ops inp ry overflow E r t 1294
       | IO.println "export: no good offset found"; return 1
     let mut h := Math.FixedTables.gPoint
     for _ in [1:k] do
@@ -300,7 +300,7 @@ def run (args : List String) : IO UInt32 := do
       let (hx, hy) := Math.FixedTables.affine h
       IO.println s!"  H=[{i}]G first failure = {firstFailure ops inp (seedOf ry hx hy overflow E r t)}"
       h := _root_.addE h Math.FixedTables.gPoint Challenge.Specs.ECDSAP256.params
-  match searchH ops inp ry overflow E r t 1290 with
+  match searchH ops inp ry overflow E r t 1294 with
   | some k =>
       IO.println s!"smoke test: all R1CS assertions hold with H = [{k}]G"
       return 0

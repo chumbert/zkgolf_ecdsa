@@ -204,32 +204,46 @@ green, axiom-clean):
 
 **Finding 1 — the plan's slot budget was too small — RESOLVED.** The plan
 budgets 1,039 slots and 1,040 candidates `[k+1]G`. The circuit actually needs
-**1,289** slots (`famOf_m`), because the plan's count omits the 128 fixed-base
-window denominators (`fbWin`, 256 slots). The candidate set has been enlarged
-to `Fin 1290 = 1,289 + 1` (the tight bound) throughout:
+**1,293** slots (`famOf_m`): the plan's count omits the 128 fixed-base window
+denominators (`fbWin`, 256 slots) and undercounts the ladder's second
+denominator. The candidate set has been enlarged to `Fin 1294 = 1,293 + 1` (the
+tight bound) throughout:
 
-* `Math/OffsetCandidates.lean`: `offsetCandidate : Fin 1290 → Grp`,
-  `thousand_two_hundred_ninety_lt_n : 1290 < n`,
+* `Math/OffsetCandidates.lean`: `offsetCandidate : Fin 1294 → Grp`,
+  `thousand_two_hundred_ninety_four_lt_n : 1294 < n`,
   `offsetCandidate_injective` re-proved, `exists_goodOffset` /
-  `exists_goodOffset_nat` / `findGoodOffset` re-bounded to `m < 1290`;
-* `Math/OffsetFamily.lean`: `famOf_m_lt_candidates : (famOf …).m < 1290` and
-  the instantiated existence theorem
-  `exists_goodOffset_famOf : ∃ k : Fin 1290, (famOf …).Avoids (offsetCandidate k)`;
+  `exists_goodOffset_nat` / `findGoodOffset` re-bounded to `m < 1294`;
+* `Math/OffsetFamily.lean`: `famOf_m : (famOf …).m = 1293`,
+  `famOf_m_lt_candidates : (famOf …).m < 1294`, and the instantiated existence
+  theorem `exists_goodOffset_famOf : ∃ k : Fin 1294, (famOf …).Avoids
+  (offsetCandidate k)`;
 * `Witness/Generate.lean`, `Witness/Correctness.lean`: every `hm : fam.m < 1040`
-  is now `hm : fam.m < 1290`;
-* `StandardECDSA/Check.lean`: the executable search bound is 1290.
+  is now `hm : fam.m < 1294`;
+* `StandardECDSA/Check.lean`: the executable search bound is 1294.
 
-The 1,039 fiction is gone: the count is stated as 1,289 everywhere.
+The 1,039 fiction is gone: the count is stated as 1,293 everywhere.
 
-**Finding 2 — one genuinely input-only exception.** The final `elmTo`
-denominator `x(C_255) - x(-ep)` yields `2H = -(B_255 + [E]G)` (coefficient 2,
-slot `ladFin`) and `B_255 = [E]G` (coefficient **0**). The second is a condition
-on the inputs alone, so it cannot be a `BadFamily` slot. For a standard-valid
-signature `B_255 = [r]Q + [t]R = -[E]G`, so it reads `[2E]G = O`, i.e.
-`E ≡ 0 (mod n)`. Since `E < 2^256 < 2n`, that is `E ∈ {0, n}`: **for digest
-`E = 0` or `E = n` the final `elmTo` denominator vanishes identically and the
-circuit is unsatisfiable.** This is a genuine completeness limitation of the
-circuit, not a proof gap; it is recorded as `digest_nondegenerate`.
+**Finding 2 — the `E ∈ {0, n}` unsatisfiability claim — REFUTED.** The earlier
+report claimed that the final `elmTo` denominator vanishes identically for
+digest `E = 0` or `E = n`, making the circuit reject standard-valid inputs.
+That claim was **wrong**, and the counter-evidence is both formal and
+executable:
+
+* *Formal.* `elmTo p q target` (`Gadgets/ELM.lean`) writes `xu = x(p + q)` at
+  wire `n + 2`, **not** `x(target)`. So the second denominator of the final
+  ladder step is `x(C_255) - x(C_255 + T_255)`, not `x(C_255) - x(-ep)`. Its
+  two equations are `[3]H = σ_255·(-b0·Q - b1·R)` and
+  `[1]H = σ_255·(-2B_255 - b0·Q - b1·R)` — both with **nonzero** coefficient.
+  There is no coefficient-`0` slot anywhere in the family, and
+  `coeffOf_pos` is unconditional.
+* *Executable.* `lake exe standardEcdsaTests` reports
+  `PASS valid-digest-0  oracle=true circuit=(some 1) (H = [1]G)` and
+  `PASS valid-digest-n  oracle=true circuit=(some 1) (H = [1]G)`: the circuit
+  accepts both digests with the honest prover.
+
+The root cause of the error was reading the `elmTo` output wire as `x(target)`
+instead of `x(p + q)`. No circuit repair is needed, and the certified cost is
+unchanged at 4,628 allocations + 4,634 rows = 9,262.
 
 **What remains.** The bridge itself: for each of the 646 denominators, derive
 `x(P) - x(Q) ≠ 0` from `GoodOffset` by the honest-witness induction
