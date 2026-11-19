@@ -41,7 +41,7 @@ noncomputable def toAff (P : Grp) : Affine.Point Wp :=
 /-- The bad family, read in the affine group `Affine.Point Wp` instead of the
 projective group `Grp`.  `Projective.Point.toAffineLift` is an additive
 equivalence, so `Avoids` transports verbatim. -/
-noncomputable def BadFamily.toAffine (fam : BadFamily Grp) : BadFamily (Affine.Point Wp) where
+noncomputable abbrev BadFamily.toAffine (fam : BadFamily Grp) : BadFamily (Affine.Point Wp) where
   m := fam.m
   coeff := fam.coeff
   coeff_pos := fam.coeff_pos

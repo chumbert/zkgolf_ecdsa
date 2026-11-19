@@ -411,6 +411,35 @@ output, `muxConst4W_tablePt` gives `T_k = tablePt k d_k`, `fbInv` gives
 `A_k = [1]H + B₁`, and `X_ne_of_avoids_sharp` with `a = 0`, `b = 1` closes it
 against slots `(k, false)` and `(k, true)`.
 
+**Round-25 progress on the two blockers.**
+
+* Blocker 1 is **fixed**: `open StandardECDSA.Math.FixedTables` in the header
+  makes `fixedTables` resolve to the global, and `fbMux_eq`
+  (`fbMux eb fixedTables ⟨k,hk⟩ = muxConst4W … (fbTab k hk)`, by
+  `simp only [fbMux]` then `rw [fixedTables_getD_row k hk]`) now compiles.
+* Blocker 2 is **fixed at the root**: `BadFamily.toAffine` was a `def`, so
+  `(famOf …).toAffine.m` did not reduce at `implicit` transparency and every
+  `simp only [BadFamily.toAffine_coeff, …]` failed with "made no progress".
+  Changing it to `noncomputable abbrev` makes it reducible; the slot-coefficient
+  facts `hcF` / `hcT` now go through.
+
+**Remaining gap (precise).** `(famOf …).toAffine.target i` is
+`toAff (famOf …).target i` — a *projective* `Grp` element pushed to the affine
+group — so it is **not** definitionally `targetOf … (slotEquiv.symm i)`, and
+`famOf_target_apply` (stated about `(famOf …).target`, not `.toAffine.target`)
+does not match syntactically. The bridge is
+`BadFamily.toAffine_target : fam.toAffine.target i = toAff (fam.target i)`,
+which must be applied **before** `famOf_target_apply`, i.e.
+
+```lean
+rw [BadFamily.toAffine_target, famOf_target_apply] at h   -- then toAff_toProjective
+```
+
+That two-step rewrite is what the next round should use; the rest of `fbWin_dx`
+(`hT0`/`hTval0` from `muxConst4W_tablePt`, `hval` from `fbInv`,
+`X_ne_of_avoids_sharp` with `a = 0`, `b = 1`, and the final
+`rw [fbMux_eq eb k hk]`) is already in place and type-checks.
+
 **What remains (G1-c).** The two honest-witness inductions
 `P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)` over the 128 fixed-base
 windows and the 256 ladder steps, instantiating `X_ne_of_avoids` once per
