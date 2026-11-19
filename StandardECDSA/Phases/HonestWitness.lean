@@ -23,15 +23,15 @@ UsesLocalWitnessesCompleteness env n (g.operations n)  →  ConstraintsHold.Soun
 
 with exactly the extra hypotheses that the gadget's *guarded* denominators
 require (`affAdd`/`elm`/`elmCore` need `x(q) - x(p) ≠ 0` and, for the ELM
-family, `x(p) - xu ≠ 0`; `affDouble` needs `y(p) ≠ 0` — not yet available here, see the note at the end).
+family, `x(p) - xu ≠ 0`; `affDouble` needs `y(p) ≠ 0`).
 
 `elmTo` is deliberately absent: its last two rows are the *assertion* being
 checked, not witness definitions, so they cannot be derived from
 `UsesLocalWitnessesCompleteness`.  Only its `elmCore` prefix is available here.
 
-`affDouble` is missing because `mat_complete` (`Gadgets/Semantics2.lean`) is
-stated for `ConstraintsHold.Completeness`; a `Soundness` version of it is
-needed before `affDouble` and hence `shiftedTables` can be covered.
+`mat_soundness_of_ulwc` re-runs the `mat_complete` induction with
+`ConstraintsHold.Soundness` (the two predicates agree on `matOps`, which emits
+only `.witness`/`.assert`), which is what `affDouble_soundness_of_ulwc` needs.
 
 Task T13 / gaps G1, G2.
 -/
@@ -103,6 +103,57 @@ theorem mux4W_soundness_of_ulwc (b0 b1 : E) (p0 p1 p2 p3 : Pt)
   · rw [e5]; ring
   · rw [e6]; ring
 
+/-! ## The `mat` gadget
+
+`matOps` emits only `.witness` and `.assert`, so `ConstraintsHold.Completeness`
+and `ConstraintsHold.Soundness` agree on it.  Rather than bridge the two
+predicates (which would need the `NoLookupSub` facts for `matOps`, and those
+live in a file that imports `Main.lean`), the induction of `mat_complete` is
+simply re-run with `Soundness`.
+-/
+
+/-- The `mat` rows hold for the honest witness. -/
+theorem mat_soundness_of_ulwc (e : E) : ∀ n (env : ProverEnvironment Fp),
+    env.UsesLocalWitnessesCompleteness n (matOps e n) →
+    ConstraintsHold.Soundness env (matOps e n) := by
+  induction e with
+  | var v =>
+      intro n env _
+      rw [matOps]
+      simp [ConstraintsHold.Soundness, Operations.forAllNoOffset]
+  | const k =>
+      intro n env _
+      rw [matOps]
+      simp [ConstraintsHold.Soundness, Operations.forAllNoOffset]
+  | add a b iha ihb =>
+      intro n env h
+      rw [matOps, ulwc_append] at h
+      rw [matOps_localLength] at h
+      rw [matOps, ConstraintsHold.Soundness, Operations.forAllNoOffset_append]
+      exact ⟨iha n env h.1, ihb (n + matLen a) env h.2⟩
+  | mul a b iha ihb =>
+      intro n env h
+      by_cases hc : deg a = 0 ∨ deg b = 0
+      · simp only [matOps, hc, if_true, List.append_nil] at h ⊢
+        rw [ulwc_append] at h
+        rw [matOps_localLength] at h
+        rw [ConstraintsHold.Soundness, Operations.forAllNoOffset_append]
+        exact ⟨iha n env h.1, ihb (n + matLen a) env h.2⟩
+      · simp only [matOps, hc, if_false] at h ⊢
+        rw [ulwc_append] at h
+        rw [matOps_localLength] at h
+        obtain ⟨h1, h2⟩ := h
+        rw [ulwc_append] at h2
+        rw [matOps_localLength] at h2
+        obtain ⟨h2a, h2b⟩ := h2
+        rw [ConstraintsHold.Soundness, Operations.forAllNoOffset_append]
+        refine ⟨iha n env h1, ?_⟩
+        rw [Operations.forAllNoOffset_append]
+        refine ⟨ihb (n + matLen a) env h2a, ?_⟩
+        simp only [Operations.forAllNoOffset, ProverEnvironment.UsesLocalWitnessesCompleteness]
+          at h2b ⊢
+        exact ⟨trivial, mat_assert_eval a b n env h2b.1, trivial⟩
+
 /-! ## Affine gadgets -/
 
 /-- The `affAdd` rows hold for the honest witness, provided the guarded
@@ -116,6 +167,31 @@ theorem affAdd_soundness_of_ulwc (p q : Pt) (env : ProverEnvironment Fp) (n : Na
   refine ⟨?_, ?_, ?_, ?_⟩
   · rw [e1]; simp only [eval_cst]; linear_combination mul_inv_cancel₀ hDx
   · rw [e2, e1]; field_simp; ring
+  · rw [e3]; ring
+  · rw [e4]; ring
+
+/-- The `affDouble` rows hold for the honest witness, provided `y(p) ≠ 0`. -/
+theorem affDouble_soundness_of_ulwc (p : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((affDouble p).operations n))
+    (hy : Expression.eval env.toEnvironment p.2 ≠ 0) :
+    ConstraintsHold.Soundness env ((affDouble p).operations n) := by
+  simp only [affDouble, mm, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4⟩ := hw
+  rw [mat_operations_eq] at e1
+  have hlen : Operations.localLength (mat (.mul p.1 p.1) n).2 = matLen (.mul p.1 p.1) :=
+    mat_localLength_eq _ n
+  simp only [hlen] at e2 e3 e4 ⊢
+  rw [Nat.add_comm (matLen (.mul p.1 p.1)) n] at e2 e3 e4
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [mat_operations_eq]
+    exact mat_soundness_of_ulwc _ n env e1
+  · have h2 : (2 : Fp) ≠ 0 := by decide
+    have hsc : Expression.eval env.toEnvironment (sc 2 p.2) ≠ 0 := by
+      simp only [sc, circuit_norm]
+      exact mul_ne_zero h2 hy
+    rw [e2]
+    field_simp
+    ring
   · rw [e3]; ring
   · rw [e4]; ring
 
@@ -152,6 +228,31 @@ theorem elm_soundness_of_ulwc (p q : Pt) (env : ProverEnvironment Fp) (n : Nat)
   · rw [e4]; field_simp; ring
   · rw [e5]; ring
   · rw [e6]; ring
+
+/-- The `shiftedTables` rows hold for the honest witness, provided the five
+guarded denominators are nonzero. -/
+theorem shiftedTables_soundness_of_ulwc (h q r : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((shiftedTables h q r).operations n))
+    (hdeg : deg h.1 = 1)
+    (hy : Expression.eval env h.2 ≠ 0)
+    (hdx1 : Expression.eval env h.1 - env.get (n + 2) ≠ 0)
+    (hdx2 : Expression.eval env q.1 - env.get (n + 6) ≠ 0)
+    (hdx3 : Expression.eval env r.1 - env.get (n + 6) ≠ 0)
+    (hdx4 : Expression.eval env r.1 - env.get (n + 10) ≠ 0)
+    (hdx5 : Expression.eval env r.1 - env.get (n + 22) ≠ 0) :
+    ConstraintsHold.Soundness env ((shiftedTables h q r).operations n) := by
+  simp only [shiftedTables, circuit_norm] at hw ⊢
+  simp only [affAdd_localLength', affDouble_localLength' hdeg, Nat.add_comm 4] at hw ⊢
+  obtain ⟨w1, w2, w3, w4, w5, w6, w7, w8⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · exact affDouble_soundness_of_ulwc h env n w1 hy
+  · exact affAdd_soundness_of_ulwc _ _ env _ w2 (by rw [affDouble_out_fst hdeg]; exact hdx1)
+  · exact affAdd_soundness_of_ulwc _ _ env _ w3 (by rw [affAdd_out_fst]; exact hdx2)
+  · exact affAdd_soundness_of_ulwc _ _ env _ w4 (by rw [affAdd_out_fst]; exact hdx3)
+  · exact affAdd_soundness_of_ulwc _ _ env _ w5 (by rw [affAdd_out_fst]; exact hdx4)
+  · exact affAdd_soundness_of_ulwc _ _ env _ w6 hdx2
+  · exact affAdd_soundness_of_ulwc _ _ env _ w7 hdx3
+  · exact affAdd_soundness_of_ulwc _ _ env _ w8 (by rw [affAdd_out_fst]; exact hdx5)
 
 /-! ## Phase bodies
 

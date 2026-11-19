@@ -109,6 +109,9 @@ import StandardECDSA.Phases.HonestWitness
 #print axioms StandardECDSA.Phases.elm_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.fixedBaseBody_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.jointLadderBody_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.mat_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.affDouble_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.shiftedTables_soundness_of_ulwc
 #print axioms StandardECDSA.curvePhase_cost
 #print axioms StandardECDSA.bitsPhase_cost
 #print axioms StandardECDSA.cmpPhase_cost

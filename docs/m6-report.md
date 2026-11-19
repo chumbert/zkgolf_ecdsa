@@ -270,10 +270,24 @@ with exactly the extra hypotheses the guarded denominators need:
   facts separately so that no `>>=` or fold is ever `whnf`-ed.
 
 `elmTo` is deliberately absent: its last two rows are the assertion being
-checked, not witness definitions. `affDouble` is absent because
-`mat_complete` (`Gadgets/Semantics2.lean`) is stated for
-`ConstraintsHold.Completeness`; a `Soundness` version of it is the next brick
-needed before `affDouble` and hence `shiftedTables` can be covered.
+checked, not witness definitions.
+
+**Round-20 additions — the `affDouble` / `shiftedTables` bricks are now in.**
+The missing `Soundness` version of `mat_complete` is proved as
+`mat_soundness_of_ulwc` (the same induction as `mat_complete`, re-run with
+`ConstraintsHold.Soundness`; it cannot be obtained by bridging
+`Completeness → Soundness` because `NoLookupSub.nls_matOps` lives in
+`NoLookupSub.lean`, which imports `Main.lean`). On top of it:
+
+* `affDouble_soundness_of_ulwc` — needs the explicit
+  `hsc : Expression.eval env.toEnvironment (sc 2 p.2) ≠ 0` (discharged by
+  `mul_ne_zero h2 hy`) before `field_simp`;
+* `shiftedTables_soundness_of_ulwc` — the eight-row composition, mirroring
+  `shiftedTables_complete` row for row, with the five guarded denominators
+  `hdx1…hdx5` as hypotheses.
+
+All three are axiom-clean and registered in `Tests/StandardECDSA/Axioms.lean`
+and `scripts/check_standard_ecdsa_axioms.py` (51 roots).
 
 **What remains.** The bridge itself: for each of the 646 denominators, derive
 `x(P) - x(Q) ≠ 0` from `GoodOffset` by the honest-witness induction
@@ -283,6 +297,13 @@ needed before `affDouble` and hence `shiftedTables` can be covered.
 `H`-coefficients are already known to be `±1` (`ladAccH_eq`) and `±3`
 (`Tpt`), which is why every slot coefficient is in `{1,2,3,4}`. This is
 mechanical but large (128 + 255 step inductions) and was not completed.
+
+The crux of that induction is the affine→projective bridge: `GoodOffset`'s
+`Avoids` is stated on `(H.toProjective).toMathlibPoint params …`, whereas the
+denominators are `Expression.eval env …` terms. Turning `x(S) = x(H)` into
+`Hpt = ±(shiftPt.toProjective)` needs `same_x_eq_or_neg` composed with
+`affine_to_projective_on_curve` / `toMathlibPoint` / `Affine.Point.toProjective`.
+That composition is the next brick.
 
 ### G2 — T16 concrete witness environment
 
