@@ -610,4 +610,45 @@ theorem cmpPhase_sound (b : Bits) (overflow : E) (env : Environment Fp) (n : Nat
               (assertLtOrderOf nSubOne (fun i => b.rb.getD i (cst 0)) n).2)).2)
       h3 hg hbool prefVal_boundNat_pn runsCover_pn
 
+
+/-! ## Splitting the assembled circuit
+
+`main` is a nine-stage append.  The equation lemma below exposes that shape
+syntactically, so that soundness can be split without asking the elaborator to
+`whnf` the whole circuit. -/
+
+/-- The operations of `main`, as a nine-way append. -/
+theorem main_ops (inp : Var Input Fp) (n : Nat) :
+    (main inp).operations n =
+      (let s := seedPhase inp n
+       let n1 := n + Operations.localLength s.2
+       let c := curvePhase inp s.1 n1
+       let n2 := n1 + Operations.localLength c.2
+       let z := nonzeroPhase inp n2
+       let n3 := n2 + Operations.localLength z.2
+       let b := bitsPhase n3
+       let n4 := n3 + Operations.localLength b.2
+       let d := bindPhase inp b.1 n4
+       let n5 := n4 + Operations.localLength d.2
+       let m := cmpPhase b.1 s.1.overflow n5
+       let n6 := n5 + Operations.localLength m.2
+       let ep := fixedBase (s.1.hx, s.1.hy) b.1.eb n6
+       let n7 := n6 + Operations.localLength ep.2
+       let tb := shiftedTables (s.1.hx, s.1.hy) (inp.pkX, inp.pkY)
+         (inp.r + sc nFp s.1.overflow, s.1.ry) n7
+       let n8 := n7 + Operations.localLength tb.2
+       let ld := jointLadder (s.1.hx, -s.1.hy) tb.1 b.1.rb b.1.sb (ep.1.1, -ep.1.2) n8
+       s.2 ++ c.2 ++ z.2 ++ b.2 ++ d.2 ++ m.2 ++ ep.2 ++ tb.2 ++ ld.2) := rfl
+
+set_option linter.constructorNameAsVariable false in
+/-- Nine-way version of `soundness_append`. -/
+theorem soundness_append9 {env : Environment Fp} {a b c d e f g h i : Operations Fp}
+    (hc : ConstraintsHold.Soundness env (a ++ b ++ c ++ d ++ e ++ f ++ g ++ h ++ i)) :
+    ConstraintsHold.Soundness env a ∧ ConstraintsHold.Soundness env b ∧
+      ConstraintsHold.Soundness env c ∧ ConstraintsHold.Soundness env d ∧
+      ConstraintsHold.Soundness env e ∧ ConstraintsHold.Soundness env f ∧
+      ConstraintsHold.Soundness env g ∧ ConstraintsHold.Soundness env h ∧
+      ConstraintsHold.Soundness env i := by
+  simpa only [ConstraintsHold.Soundness, Operations.forAllNoOffset_append, and_assoc] using hc
+
 end StandardECDSA
