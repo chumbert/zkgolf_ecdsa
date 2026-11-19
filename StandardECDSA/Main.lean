@@ -1497,4 +1497,224 @@ theorem main_soundness (inp : Var Input Fp) (env : Environment Fp) (n : Nat)
     rw [hRX]
     exact (x_mod_order_iff_lift hrv_lt hovv hrn).2
 
+
+theorem eval_pm_var (env : Environment Fp) (a : E) (i : Nat) :
+    Expression.eval env (pm a (var ⟨i⟩)) = Expression.eval env a * env.get i := rfl
+
+theorem getD_eq_default {v : Vector E 256} {k : Nat} (hk : ¬ k < 256) :
+    v.getD k (cst 0) = cst 0 := by
+  simp only [Vector.getD, Vector.get, Array.getD, v.size_toArray, hk, dif_neg,
+    not_false_eq_true]
+
+theorem lit_nFp :
+    (115792089210356248762697446949407573529996955224135760342422259061068512044369 : Fp)
+      = (Challenge.Specs.ECDSAP256.n : Fp) := rfl
+
+theorem seedPhase_complete (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((seedPhase inp n).2))
+    (hov : Expression.eval env (seedPhase inp n).1.overflow = 0 ∨
+           Expression.eval env (seedPhase inp n).1.overflow = 1) :
+    ConstraintsHold.Completeness env ((seedPhase inp n).2) := by
+  simp only [seedPhase, hint, Gadgets.assertBool, circuit_norm,
+    Operations.localLength, Nat.add_zero] at hw hov ⊢
+  rcases hov with h | h <;> rw [h] <;> ring
+
+theorem nonzeroPhase_complete (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((nonzeroPhase inp n).2))
+    (hr : Expression.eval env inp.r ≠ 0)
+    (ht : Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s) ≠ 0) :
+    ConstraintsHold.Completeness env ((nonzeroPhase inp n).2) := by
+  simp only [nonzeroPhase, nonzero, circuit_norm, Operations.localLength,
+    Nat.add_zero] at hw ⊢
+  obtain ⟨h1, h2⟩ := hw
+  have hr' : (ProvableStruct.eval env.toEnvironment inp).r = Expression.eval env.toEnvironment inp.r := by simp
+  have hs' : (ProvableStruct.eval env.toEnvironment inp).s = Expression.eval env.toEnvironment inp.s := by simp
+  refine ⟨?_, ?_⟩
+  · rw [eval_pm_var, h1, hr', eval_cst]
+    exact sub_eq_zero.mpr (mul_inv_cancel₀ hr)
+  · rw [eval_pm_var, h2, hs']
+    simp only [eval_sub, eval_cst, lit_nFp] at ht ⊢
+    exact sub_eq_zero.mpr (mul_inv_cancel₀ ht)
+
+theorem isOnCurve_complete (x y : E) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((isOnCurve x y).operations n))
+    (hcurve : Expression.eval env.toEnvironment y ^ 2
+      = Expression.eval env.toEnvironment x ^ 3 + pa * Expression.eval env.toEnvironment x + pb) :
+    ConstraintsHold.Completeness env ((isOnCurve x y).operations n) := by
+  simp only [isOnCurve, mm, bind_snd, Circuit.operations] at hw ⊢
+  rw [ulwc_append] at hw
+  obtain ⟨hA, hB⟩ := hw
+  rw [ConstraintsHold.Completeness, Operations.forAllNoOffset_append]
+  refine ⟨?_, ?_⟩
+  · rw [mat_operations_eq] at hA ⊢
+    exact mat_complete _ n env hA
+  · refine assertZeroLazy_complete _ _ env ?_ ?_
+    · rw [mat_operations_eq] at hB ⊢
+      exact hB
+    · have hmat : Expression.eval env.toEnvironment ((mat (.mul x x) n).1)
+          = Expression.eval env.toEnvironment x * Expression.eval env.toEnvironment x := by
+        rw [mat_output_eq]
+        exact matOut_eval_complete env _ n (by rwa [mat_operations_eq] at hA)
+      simp only [sc, cst, eval_add', eval_mul, eval_neg, eval_sub, eval_cst, eval_const, hmat]
+      linear_combination hcurve
+
+theorem curvePhase_complete (inp : Var Input Fp) (s : Seed) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((curvePhase inp s n).2))
+    (h1 : Expression.eval env.toEnvironment inp.pkY ^ 2
+      = Expression.eval env.toEnvironment inp.pkX ^ 3 + pa * Expression.eval env.toEnvironment inp.pkX + pb)
+    (h2 : Expression.eval env.toEnvironment s.ry ^ 2
+      = Expression.eval env.toEnvironment (inp.r + sc nFp s.overflow) ^ 3
+        + pa * Expression.eval env.toEnvironment (inp.r + sc nFp s.overflow) + pb)
+    (h3 : Expression.eval env.toEnvironment s.hy ^ 2
+      = Expression.eval env.toEnvironment s.hx ^ 3 + pa * Expression.eval env.toEnvironment s.hx + pb) :
+    ConstraintsHold.Completeness env ((curvePhase inp s n).2) := by
+  simp only [curvePhase, bind_snd, Circuit.operations] at hw ⊢
+  simp only [ulwc_append, Operations.append_localLength, ← Nat.add_assoc] at hw
+  obtain ⟨⟨hA, hB⟩, hC⟩ := hw
+  simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append]
+  exact ⟨⟨isOnCurve_complete _ _ env n hA h1,
+    isOnCurve_complete _ _ env _ hB h2⟩,
+    isOnCurve_complete _ _ env _ hC h3⟩
+
+theorem bitBody_complete (base stride : Nat) (i : Fin 256) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((bitBody base stride i).operations n))
+    (hb : Expression.eval env.toEnvironment ((bitBody base stride i).output n) = 0 ∨
+          Expression.eval env.toEnvironment ((bitBody base stride i).output n) = 1) :
+    ConstraintsHold.Completeness env ((bitBody base stride i).operations n) := by
+  simp only [bitBody, hint, Gadgets.assertBool, circuit_norm, Operations.localLength,
+    Nat.add_zero] at hw hb ⊢
+  rcases hb with h | h <;> rw [h] <;> ring
+
+theorem bitVec_complete (base stride : Nat) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((bitVec base stride).operations n))
+    (hb : ∀ k : Fin 256,
+      Expression.eval env.toEnvironment (((bitVec base stride).output n).get k) = 0 ∨
+      Expression.eval env.toEnvironment (((bitVec base stride).output n).get k) = 1) :
+    ConstraintsHold.Completeness env ((bitVec base stride).operations n) := by
+  simp only [bitVec, ConstraintsHold.Completeness, Circuit.mapFinRange.forAll',
+    Circuit.mapFinRange.usesLocalWitnesses] at hw ⊢
+  intro i
+  refine bitBody_complete base stride i env _ (hw i) ?_
+  have hbi := hb i
+  rw [bitVec, Circuit.mapFinRange.output_eq] at hbi
+  simpa only [Vector.getElem_mapFinRange, Vector.get_eq_getElem, bitBody_localLength,
+    Nat.mul_one] using hbi
+
+theorem bitsPhase_complete (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((bitsPhase n).2))
+    (hb : ∀ k : Fin 256, Expression.eval env.toEnvironment ((bitsPhase n).1.eb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase n).1.eb.get k) = 1)
+    (hb' : ∀ k : Fin 256, Expression.eval env.toEnvironment ((bitsPhase n).1.rb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase n).1.rb.get k) = 1)
+    (hb'' : ∀ k : Fin 256, Expression.eval env.toEnvironment ((bitsPhase n).1.sb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase n).1.sb.get k) = 1) :
+    ConstraintsHold.Completeness env ((bitsPhase n).2) := by
+  simp only [bitsPhase, bind_snd, Circuit.operations] at hw ⊢
+  simp only [ulwc_append, Operations.append_localLength, ← Nat.add_assoc] at hw
+  obtain ⟨⟨hA, hB⟩, hC⟩ := hw
+  simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append]
+  refine ⟨⟨?_, ?_⟩, ?_⟩
+  · exact bitVec_complete 4 3 env n hA hb
+  · exact bitVec_complete 5 3 env _ hB hb'
+  · exact bitVec_complete 6 3 env _ hC hb''
+
+theorem bindPhase_complete (inp : Var Input Fp) (b : Bits) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((bindPhase inp b n).2))
+    (h0 : Expression.eval env (linComb b.eb 0 128) = Expression.eval env inp.digestLo)
+    (h1 : Expression.eval env (linComb b.eb 128 128) = Expression.eval env inp.digestHi)
+    (h2 : Expression.eval env (linComb b.rb 0 256) = Expression.eval env inp.r)
+    (h3 : Expression.eval env (linComb b.sb 0 256)
+      = Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s)) :
+    ConstraintsHold.Completeness env ((bindPhase inp b n).2) := by
+  simp only [bindPhase, Circuit.assertZero, circuit_norm, Operations.localLength,
+    Nat.add_zero] at hw ⊢
+  have hd : (ProvableStruct.eval env.toEnvironment inp).digestLo
+      = Expression.eval env.toEnvironment inp.digestLo := by simp
+  have hd' : (ProvableStruct.eval env.toEnvironment inp).digestHi
+      = Expression.eval env.toEnvironment inp.digestHi := by simp
+  have hr : (ProvableStruct.eval env.toEnvironment inp).r
+      = Expression.eval env.toEnvironment inp.r := by simp
+  have hs' : (ProvableStruct.eval env.toEnvironment inp).s
+      = Expression.eval env.toEnvironment inp.s := by simp
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [h0, hd, sub_self]
+  · rw [h1, hd', sub_self]
+  · rw [h2, hr, sub_self]
+  · rw [h3]
+    simp only [eval_sub, eval_cst, lit_nFp, hs', sub_self]
+
+theorem assertLtOrderOf_complete (bound : Nat) (a : Nat → E) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((assertLtOrderOf bound a).operations n))
+    (hpref : prefVal (boundNat bound) 256 = bound)
+    (hcover : RunsCover bound 256 (boundRunsOf bound))
+    (hb : ∀ k, Expression.eval env.toEnvironment (a k) = 0 ∨
+      Expression.eval env.toEnvironment (a k) = 1)
+    (hle : prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment (a k))
+      (255 - j)) 256 ≤ bound) :
+    ConstraintsHold.Completeness env ((assertLtOrderOf bound a).operations n) := by
+  simp only [assertLtOrderOf] at hw ⊢
+  refine ltLoop_complete env _ a (fun k => rfl) hb bound hpref hle
+    (boundRunsOf bound) 256 (cst 0) n (by omega) hcover ?_ hw
+  simp only [cst, eval_const]
+  unfold missAbove
+  simp
+
+theorem assertLtOrderGuardedOf_complete (bound : Nat) (guard : E) (a : Nat → E)
+    (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((assertLtOrderGuardedOf bound guard a).operations n))
+    (hpref : prefVal (boundNat bound) 256 = bound)
+    (hcover : RunsCover bound 256 (boundRunsOf bound))
+    (hb : ∀ k, Expression.eval env.toEnvironment (a k) = 0 ∨
+      Expression.eval env.toEnvironment (a k) = 1)
+    (hg : Expression.eval env.toEnvironment guard = 0 ∨
+      Expression.eval env.toEnvironment guard = 1)
+    (hle : Expression.eval env.toEnvironment guard = 1 →
+      prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment (a k))
+        (255 - j)) 256 ≤ bound) :
+    ConstraintsHold.Completeness env ((assertLtOrderGuardedOf bound guard a).operations n) := by
+  simp only [assertLtOrderGuardedOf] at hw ⊢
+  refine ltLoopGuarded_complete env _ a (fun k => rfl) hb bound guard hg hpref hle
+    (boundRunsOf bound) 256 (cst 0) n (by omega) hcover ?_ hw
+  simp only [cst, eval_const]
+  unfold missAbove
+  simp
+
+theorem cmpPhase_complete (b : Bits) (overflow : E) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((cmpPhase b overflow n).2))
+    (hb : ∀ k : Fin 256, Expression.eval env.toEnvironment (b.rb.get k) = 0 ∨
+      Expression.eval env.toEnvironment (b.rb.get k) = 1)
+    (hb' : ∀ k : Fin 256, Expression.eval env.toEnvironment (b.sb.get k) = 0 ∨
+      Expression.eval env.toEnvironment (b.sb.get k) = 1)
+    (hg : Expression.eval env.toEnvironment overflow = 0 ∨
+      Expression.eval env.toEnvironment overflow = 1)
+    (hle : prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+      (b.rb.getD k (cst 0))) (255 - j)) 256 ≤ nSubOne)
+    (hle' : prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+      (b.sb.getD k (cst 0))) (255 - j)) 256 ≤ nSubOne)
+    (hleg : Expression.eval env.toEnvironment overflow = 1 →
+      prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+        (b.rb.getD k (cst 0))) (255 - j)) 256 ≤ pSubNSubOne) :
+    ConstraintsHold.Completeness env ((cmpPhase b overflow n).2) := by
+  simp only [cmpPhase, bind_snd, Circuit.operations] at hw ⊢
+  simp only [ulwc_append, Operations.append_localLength, ← Nat.add_assoc] at hw
+  obtain ⟨⟨hA, hB⟩, hC⟩ := hw
+  simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append]
+  refine ⟨⟨?_, ?_⟩, ?_⟩
+  · exact assertLtOrderOf_complete nSubOne _ env n hA prefVal_boundNat_n runsCover_n
+      (fun k => by
+        by_cases hk : k < 256
+        · rw [getD_eq_get hk]; exact hb ⟨k, hk⟩
+        · rw [getD_eq_default hk]; simp) hle
+  · exact assertLtOrderOf_complete nSubOne _ env _ hB prefVal_boundNat_n runsCover_n
+      (fun k => by
+        by_cases hk : k < 256
+        · rw [getD_eq_get hk]; exact hb' ⟨k, hk⟩
+        · rw [getD_eq_default hk]; simp) hle'
+  · exact assertLtOrderGuardedOf_complete pSubNSubOne overflow _ env _ hC
+      prefVal_boundNat_pn runsCover_pn
+      (fun k => by
+        by_cases hk : k < 256
+        · rw [getD_eq_get hk]; exact hb ⟨k, hk⟩
+        · rw [getD_eq_default hk]; simp) hg hleg
+
 end StandardECDSA
