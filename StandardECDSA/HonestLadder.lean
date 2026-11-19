@@ -565,4 +565,407 @@ theorem hj2_dx (env : Environment Fp) (eb : Vector E 256) (rb sb : Vector E 256)
       hPpt hQpt h1 (by omega) h3
     exact sub_ne_zero.mpr hne
 
+/-! ## The prefix invariant at `j = 255` -/
+
+set_option linter.constructorNameAsVariable false in
+/-- The fold invariant at the last step: the `foldlRange` output represents
+`ladAcc … 255`. -/
+theorem jointLadder_ladInv_255 (env : Environment Fp) (Hpt Qpt Rpt : Affine.Point Wp)
+    (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt) (n : Nat)
+    (hacc0 : ∃ hns : NS (Expression.eval env acc0.1) (Expression.eval env acc0.2),
+      Affine.Point.some (Expression.eval env acc0.1) (Expression.eval env acc0.2) hns = -Hpt)
+    (hb : ∀ k : Fin 256, Expression.eval env (rb.get k) = 0 ∨ Expression.eval env (rb.get k) = 1)
+    (hb' : ∀ k : Fin 256, Expression.eval env (sb.get k) = 0 ∨ Expression.eval env (sb.get k) = 1)
+    (htab : ∀ (j : Nat) (hj : j < 256) (v w : Fp), (v = 0 ∨ v = 1) → (w = 0 ∨ w = 1) →
+      ∃ hns : NS (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).1
+              else Expression.eval env (tables.x2 j).1)
+          else (if w = 0 then Expression.eval env (tables.x1 j).1
+            else Expression.eval env (tables.x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).2
+              else Expression.eval env (tables.x2 j).2)
+          else (if w = 0 then Expression.eval env (tables.x1 j).2
+            else Expression.eval env (tables.x3 j).2)),
+        Affine.Point.some _ _ hns
+          = (3 * sigma j) • Hpt + (if v = 1 then (1 : ℤ) else 0) • Qpt
+            + (if w = 1 then (1 : ℤ) else 0) • Rpt)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    ladInv Hpt Qpt Rpt env rb sb 255 (jlOut acc0 tables rb sb n) := by
+  have hL2 : (jointLadder acc0 tables rb sb target n).2
+      = (jointLadder acc0 tables rb sb target).operations n := rfl
+  rw [hL2, jointLadder_ops] at hc
+  simp only [ConstraintsHold.Soundness] at hc
+  rw [Operations.forAllNoOffset_append] at hc
+  obtain ⟨hc1, _⟩ := hc
+  rw [Circuit.foldlRange.forAllNoOffset] at hc1
+  have hcl : ∀ i : Fin 255, (jointLadderBody tables rb sb default i).localLength = 12 := by
+    intro i
+    simp only [jointLadderBody, mux4W_localLength, elm_localLength, Circuit.localLength,
+      Operations.append_localLength]
+  have hinit : ladInv Hpt Qpt Rpt env rb sb 0 acc0 := hacc0
+  have hstep : ∀ (j : Nat) (hj : j < 255),
+      ladInv Hpt Qpt Rpt env rb sb j
+        (Fin.foldl j (fun acc (i : Fin j) =>
+          (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12)) acc0) →
+      ladInv Hpt Qpt Rpt env rb sb (j + 1)
+        ((jointLadderBody tables rb sb
+          (Fin.foldl j (fun acc (i : Fin j) =>
+            (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12)) acc0)
+          ⟨j, hj⟩).output (n + j * 12)) := by
+    intro j hj hacc
+    obtain ⟨hns, hval⟩ := hacc
+    have hcj := hc1 ⟨j, hj⟩
+    rw [hcl ⟨j, hj⟩] at hcj
+    rw [foldlAcc_eq_ladder tables rb sb acc0 n j hj] at hcj
+    simp only [jointLadderBody_ops] at hcj
+    rw [Operations.forAllNoOffset_append] at hcj
+    obtain ⟨hm, he⟩ := hcj
+    obtain ⟨hTm, hTval⟩ :=
+      mux4W_Tpt env Hpt Qpt Rpt tables rb sb j (by omega : j < 256) (n + j * 12)
+        hb hb' htab hm
+    rw [jointLadderBody_out]
+    simp only [ladInv]
+    obtain ⟨hR, hRval⟩ := elm_sound env _ _ (n + j * 12 + 6) hns hTm he
+    refine ⟨hR, ?_⟩
+    refine hRval.trans ?_
+    rw [hTval, hval]
+    simp only [ladAcc]
+    rw [two_nsmul, two_zsmul]
+  have hP := fin_foldl_inv' (fun acc (i : Fin 255) =>
+      (jointLadderBody tables rb sb acc i).output (n + i.val * 12)) acc0
+    (fun k acc => ladInv Hpt Qpt Rpt env rb sb k acc) hinit hstep
+  have hfold : (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+        (jointLadderBody_constantLength tables rb sb)).output n
+      = Fin.foldl 255 (fun acc (i : Fin 255) =>
+          (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12)) acc0 := by
+    rw [Circuit.foldlRange.output_eq]
+    simp only [hcl]
+  rw [jlOut_eq, hfold]
+  exact hP 255 (by omega)
+
+/-! ## The final `elmTo` step: denominators and rows -/
+
+/-- The `x`-coordinate `xu` allocated by `elmTo`'s `elmCore` is the
+`x`-coordinate of `p + q` in the group. -/
+theorem elmToXu_group (env : Environment Fp) (p q target : Pt) (m : Nat)
+    (hA : NS (Expression.eval env p.1) (Expression.eval env p.2))
+    (hB : NS (Expression.eval env q.1) (Expression.eval env q.2))
+    (h : ConstraintsHold.Soundness env ((elmTo p q target).operations m)) :
+    ∃ hU : NS (env.get (m + 2))
+        (ElmAlgebra.elmMiddleY (Expression.eval env p.1) (Expression.eval env p.2)
+          (env.get (m + 2)) (env.get (m + 1))),
+      Affine.Point.some (env.get (m + 2))
+          (ElmAlgebra.elmMiddleY (Expression.eval env p.1) (Expression.eval env p.2)
+            (env.get (m + 2)) (env.get (m + 1))) hU
+        = Affine.Point.some (Expression.eval env p.1) (Expression.eval env p.2) hA
+          + Affine.Point.some (Expression.eval env q.1) (Expression.eval env q.2) hB := by
+  simp only [elmTo, elmCore, nonzero, circuit_norm, pm] at h
+  obtain ⟨r1, r2, r3, r4, -, -⟩ := h
+  simp only [eval_cst, eval_sc] at r1 r2 r3 r4
+  rw [show m + 1 + 1 + 1 = m + 3 from by omega] at r4
+  rw [show m + 1 + 1 = m + 2 from by omega] at r3 r4
+  have hDx : Expression.eval env q.1 - Expression.eval env p.1 ≠ 0 := by
+    intro hz
+    rw [hz, zero_mul] at r1
+    norm_num at r1
+  have h1 : env.get (m + 1) * (Expression.eval env q.1 - Expression.eval env p.1)
+      = Expression.eval env q.2 - Expression.eval env p.2 := by
+    linear_combination r2
+  have h2 : env.get (m + 1) * env.get (m + 1)
+      = Expression.eval env p.1 + Expression.eval env q.1 + env.get (m + 2) := by
+    linear_combination r3
+  have hYU : env.get (m + 1) * (Expression.eval env p.1 - env.get (m + 2))
+      = Expression.eval env p.2
+        + ElmAlgebra.elmMiddleY (Expression.eval env p.1) (Expression.eval env p.2)
+            (env.get (m + 2)) (env.get (m + 1)) := by
+    simp only [ElmAlgebra.elmMiddleY]
+    ring
+  have hU := ElmAlgebra.affine_add_onCurve params.a params.b
+    (Expression.eval env p.1) (Expression.eval env p.2)
+    (Expression.eval env q.1) (Expression.eval env q.2)
+    (env.get (m + 2))
+    (ElmAlgebra.elmMiddleY (Expression.eval env p.1) (Expression.eval env p.2)
+      (env.get (m + 2)) (env.get (m + 1)))
+    (env.get (m + 1)) (ns_equation _ _ hA) (ns_equation _ _ hB) hDx h1 h2 hYU
+  refine ⟨Math.AffineBridge.short_nonsingular params _ _ hU, ?_⟩
+  exact Math.AffineBridge.affine_add_eq_group params
+    (Expression.eval env p.1) (Expression.eval env p.2)
+    (Expression.eval env q.1) (Expression.eval env q.2)
+    (env.get (m + 2))
+    (ElmAlgebra.elmMiddleY (Expression.eval env p.1) (Expression.eval env p.2)
+      (env.get (m + 2)) (env.get (m + 1)))
+    (env.get (m + 1))
+    (Math.AffineBridge.short_nonsingular params _ _ (ns_equation _ _ hA))
+    (Math.AffineBridge.short_nonsingular params _ _ (ns_equation _ _ hB))
+    (Math.AffineBridge.short_nonsingular params _ _ hU) hDx h1 h2 hYU
+
+/-- The first `elmTo` denominator is guarded by an explicit inverse row, so it
+never vanishes. -/
+theorem elmTo_dx1 (env : Environment Fp) (p q target : Pt) (m : Nat)
+    (h : ConstraintsHold.Soundness env ((elmTo p q target).operations m)) :
+    Expression.eval env q.1 - Expression.eval env p.1 ≠ 0 := by
+  simp only [elmTo, elmCore, nonzero, circuit_norm, pm] at h
+  obtain ⟨r1, -, -, -, -, -⟩ := h
+  intro hz
+  rw [hz, zero_mul] at r1
+  norm_num at r1
+
+/-- The fifth `elmTo` row. -/
+theorem elmTo_row5 (env : Environment Fp) (p q target : Pt) (m : Nat)
+    (h : ConstraintsHold.Soundness env ((elmTo p q target).operations m)) :
+    env.get (m + 3) * env.get (m + 3) - Expression.eval env p.1 - env.get (m + 2)
+      - Expression.eval env target.1 = 0 := by
+  simp only [elmTo, elmCore, nonzero, circuit_norm, pm] at h
+  obtain ⟨-, -, -, -, r5, -⟩ := h
+  rw [show m + 1 + 1 + 1 = m + 3 from by omega] at r5
+  rw [show m + 1 + 1 = m + 2 from by omega] at r5
+  linear_combination r5
+
+/-- The sixth `elmTo` row. -/
+theorem elmTo_row6 (env : Environment Fp) (p q target : Pt) (m : Nat)
+    (h : ConstraintsHold.Soundness env ((elmTo p q target).operations m)) :
+    env.get (m + 3) * (Expression.eval env p.1 - Expression.eval env target.1)
+      - Expression.eval env p.2 - Expression.eval env target.2 = 0 := by
+  simp only [elmTo, elmCore, nonzero, circuit_norm, pm] at h
+  obtain ⟨-, -, -, -, -, r6⟩ := h
+  rw [show m + 1 + 1 + 1 = m + 3 from by omega] at r6
+  linear_combination r6
+
+/-! ## The final `elmTo` step of the ladder -/
+
+/-- Splitting the ladder's rows into the 255-step fold and the final step. -/
+theorem jointLadder_final_rows (env : Environment Fp) (acc0 : Pt) (tables : Tables)
+    (rb sb : Vector E 256) (target : Pt) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    ConstraintsHold.Soundness env
+        ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+          (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).operations
+          (n + 3060))
+      ∧ ConstraintsHold.Soundness env
+        ((elmTo (jlOut acc0 tables rb sb n)
+          ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+            (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output
+            (n + 3060)) target).operations (n + 3060 + 6)) := by
+  have hL2 : (jointLadder acc0 tables rb sb target n).2
+      = (jointLadder acc0 tables rb sb target).operations n := rfl
+  rw [hL2, jointLadder_ops] at hc
+  simp only [ConstraintsHold.Soundness] at hc
+  rw [Operations.forAllNoOffset_append] at hc
+  obtain ⟨-, hc2⟩ := hc
+  have hc2' : ConstraintsHold.Soundness env
+      ((jointLadderFinal tables rb sb (jlOut acc0 tables rb sb n) target).operations
+        (n + 3060)) := by
+    rw [← jlOut_eq] at hc2
+    exact hc2
+  rw [jointLadderFinal_ops] at hc2'
+  simp only [ConstraintsHold.Soundness] at hc2'
+  rw [Operations.forAllNoOffset_append] at hc2'
+  exact hc2'
+
+/-- `hjf1`: the first denominator of the final `elmTo` never vanishes — it is
+guarded by an explicit inverse row. -/
+theorem hjf1_dx (env : Environment Fp) (acc0 : Pt) (tables : Tables)
+    (rb sb : Vector E 256) (target : Pt) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    Expression.eval env
+        ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+          (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output
+          (n + 3060)).1
+      - Expression.eval env (jlOut acc0 tables rb sb n).1 ≠ 0 := by
+  obtain ⟨-, he⟩ := jointLadder_final_rows env acc0 tables rb sb target n hc
+  exact elmTo_dx1 env _ _ target (n + 3060 + 6) he
+
+/-- `hjf3`: the fifth `elmTo` row of the final step. -/
+theorem hjf3_row (env : Environment Fp) (acc0 : Pt) (tables : Tables)
+    (rb sb : Vector E 256) (target : Pt) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    env.get (n + 3060 + 6 + 3) * env.get (n + 3060 + 6 + 3)
+      - Expression.eval env (jlOut acc0 tables rb sb n).1
+      - env.get (n + 3060 + 6 + 2) - Expression.eval env target.1 = 0 := by
+  obtain ⟨-, he⟩ := jointLadder_final_rows env acc0 tables rb sb target n hc
+  exact elmTo_row5 env _ _ target (n + 3060 + 6) he
+
+/-- `hjf4`: the sixth `elmTo` row of the final step. -/
+theorem hjf4_row (env : Environment Fp) (acc0 : Pt) (tables : Tables)
+    (rb sb : Vector E 256) (target : Pt) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    env.get (n + 3060 + 6 + 3)
+        * (Expression.eval env (jlOut acc0 tables rb sb n).1 - Expression.eval env target.1)
+      - Expression.eval env (jlOut acc0 tables rb sb n).2
+      - Expression.eval env target.2 = 0 := by
+  obtain ⟨-, he⟩ := jointLadder_final_rows env acc0 tables rb sb target n hc
+  exact elmTo_row6 env _ _ target (n + 3060 + 6) he
+
+set_option linter.constructorNameAsVariable false in
+/-- `hjf2`: the second denominator of the final `elmTo` does not vanish.  The
+accumulator is `C_255 = H + B_255` and the last table entry is
+`T_255 = -3·H + B0_255`, so the two bad equations are `T_255 = O` and
+`2·C_255 + T_255 = O` — the `ladDbl` slots at `j = 255`. -/
+theorem hjf2_dx (env : Environment Fp) (eb : Vector E 256) (rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) (H : AffinePoint K) (hH : H.IsOnCurve params)
+    (hgood : GoodOffset H hH (famOf env eb rb sb Qpt Rpt))
+    (acc0 : Pt) (tables : Tables) (target : Pt) (n : Nat)
+    (hacc0 : ∃ hns : NS (Expression.eval env acc0.1) (Expression.eval env acc0.2),
+      Affine.Point.some (Expression.eval env acc0.1) (Expression.eval env acc0.2) hns
+        = -goodOffsetAffinePt H hH)
+    (hb : ∀ k : Fin 256, Expression.eval env (rb.get k) = 0 ∨ Expression.eval env (rb.get k) = 1)
+    (hb' : ∀ k : Fin 256, Expression.eval env (sb.get k) = 0 ∨ Expression.eval env (sb.get k) = 1)
+    (htab : ∀ (j : Nat) (hj : j < 256) (v w : Fp), (v = 0 ∨ v = 1) → (w = 0 ∨ w = 1) →
+      ∃ hns : NS (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).1
+              else Expression.eval env (tables.x2 j).1)
+          else (if w = 0 then Expression.eval env (tables.x1 j).1
+            else Expression.eval env (tables.x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).2
+              else Expression.eval env (tables.x2 j).2)
+          else (if w = 0 then Expression.eval env (tables.x1 j).2
+            else Expression.eval env (tables.x3 j).2)),
+        Affine.Point.some _ _ hns
+          = (3 * sigma j) • goodOffsetAffinePt H hH
+            + (if v = 1 then (1 : ℤ) else 0) • Qpt
+            + (if w = 1 then (1 : ℤ) else 0) • Rpt)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    Expression.eval env (jlOut acc0 tables rb sb n).1
+      - env.get (n + 3060 + 6 + 2) ≠ 0 := by
+  classical
+  obtain ⟨hm, he⟩ := jointLadder_final_rows env acc0 tables rb sb target n hc
+  obtain ⟨hns255, hval255⟩ :=
+    jointLadder_ladInv_255 env (goodOffsetAffinePt H hH) Qpt Rpt acc0 tables rb sb target n
+      hacc0 hb hb' htab hc
+  obtain ⟨hTm, hTval⟩ := mux4W_Tpt env (goodOffsetAffinePt H hH) Qpt Rpt tables rb sb 255
+    (by norm_num) (n + 3060) hb hb' htab hm
+  have hC : ladAcc (goodOffsetAffinePt H hH) Qpt Rpt env rb sb 255
+      = ((-1 : ℤ) ^ 256) • (goodOffsetAffinePt H hH)
+        + (bitSum env rb 255) • Qpt + (bitSumT env sb 255) • Rpt := by
+    rw [ladAcc_split, ladAccH_eq, ladAccQ_eq, ladAccR_eq]
+  rw [hC] at hval255
+  rw [show ((-1 : ℤ) ^ 256) = 1 from by norm_num] at hval255
+  obtain ⟨hU, hUval⟩ := elmToXu_group env (jlOut acc0 tables rb sb n)
+    ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+      (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output (n + 3060))
+    target (n + 3060 + 6) hns255 hTm he
+  have havoid := famOf_avoids_affine env eb rb sb Qpt Rpt H hH hgood
+  have hc3 : (famOf env eb rb sb Qpt Rpt).toAffine.coeff
+      (slotEquiv (Sum.inr (Sum.inr (Sum.inr (Sum.inr (Sum.inr
+        (⟨255, by norm_num⟩, true))))))) = 3 := by
+    simp only [famOf_coeff_apply]
+    rfl
+  have hc1 : (famOf env eb rb sb Qpt Rpt).toAffine.coeff
+      (slotEquiv (Sum.inr (Sum.inr (Sum.inr (Sum.inr (Sum.inr
+        (⟨255, by norm_num⟩, false))))))) = 1 := by
+    simp only [famOf_coeff_apply]
+    rfl
+  have hS3 := nsmul_ne_of_slot havoid _ hc3
+    (T := sigma 255 • (-((rBitAt env rb 255) • Qpt) + -((tBitAt env sb 255) • Rpt)))
+    (famOf_target_ladDbl_true env eb rb sb Qpt Rpt ⟨255, by norm_num⟩)
+  have hS1 := nsmul_ne_of_slot havoid _ hc1
+    (T := sigma 255 • ((-2 : ℤ) • (ladOff env Qpt Rpt rb sb 255)
+      + -((rBitAt env rb 255) • Qpt) + -((tBitAt env sb 255) • Rpt)))
+    (famOf_target_ladDbl_false env eb rb sb Qpt Rpt ⟨255, by norm_num⟩)
+  have hs : sigma 255 = -1 := by
+    simp only [sigma]
+    norm_num
+  set B0 : Affine.Point Wp := rBitAt env rb 255 • Qpt + tBitAt env sb 255 • Rpt with hB0
+  set B1 : Affine.Point Wp := bitSum env rb 255 • Qpt + bitSumT env sb 255 • Rpt with hB1
+  have hPpt : Affine.Point.some (Expression.eval env (jlOut acc0 tables rb sb n).1)
+        (Expression.eval env (jlOut acc0 tables rb sb n).2) hns255
+      = (1 : ℤ) • goodOffsetAffinePt H hH + B1 := by
+    rw [hval255, hB1]
+    abel
+  have hQpt : Affine.Point.some (env.get (n + 3060 + 6 + 2))
+        (ElmAlgebra.elmMiddleY (Expression.eval env (jlOut acc0 tables rb sb n).1)
+          (Expression.eval env (jlOut acc0 tables rb sb n).2)
+          (env.get (n + 3060 + 6 + 2)) (env.get (n + 3060 + 6 + 1))) hU
+      = (-2 : ℤ) • goodOffsetAffinePt H hH + (B0 + B1) := by
+    rw [hUval, hTval, hval255]
+    simp only [hB0, hB1, Tpt, hs]
+    rw [show (3 * -1 : ℤ) = -3 from by norm_num]
+    abel
+  have h1 : (-2 : ℤ) ≤ 1 → (1 - (-2)) • goodOffsetAffinePt H hH ≠ (B0 + B1) - B1 := by
+    intro _
+    have h := hS3
+    rw [hs] at h
+    simp only [neg_one_zsmul] at h
+    intro heq
+    refine h ?_
+    rw [show (1 - (-2) : ℤ) = ((3 : Nat) : ℤ) from by norm_num, nsmul_eq_zsmul_int] at heq
+    rw [heq]
+    simp only [hB0, hB1]
+    abel
+  have h3 : (1 + (-2)) • goodOffsetAffinePt H hH ≠ -(B1 + (B0 + B1)) := by
+    have h := hS1
+    rw [hs] at h
+    simp only [neg_one_zsmul, ladOff] at h
+    intro heq
+    refine h ?_
+    rw [show (1 + (-2) : ℤ) = -((1 : Nat) : ℤ) from by norm_num, neg_zsmul,
+      nsmul_eq_zsmul_int, neg_inj] at heq
+    rw [heq]
+    simp only [hB0, hB1]
+    abel
+  have hne := X_ne_of_avoids_zsmul hns255 hU (goodOffsetAffinePt H hH) 1 (-2) B1 (B0 + B1)
+    hPpt hQpt h1 (by omega) h3
+  exact sub_ne_zero.mpr hne
+
+set_option linter.constructorNameAsVariable false in
+/-- **All six ladder fields of `CompleteWitness`**, discharged from the ladder's
+own rows plus a good offset.  No hypothesis mentions the denominators. -/
+theorem jointLadder_denominators (env : Environment Fp) (eb : Vector E 256)
+    (rb sb : Vector E 256) (Qpt Rpt : Affine.Point Wp) (H : AffinePoint K)
+    (hH : H.IsOnCurve params) (hgood : GoodOffset H hH (famOf env eb rb sb Qpt Rpt))
+    (acc0 : Pt) (tables : Tables) (target : Pt) (n : Nat)
+    (hacc0 : ∃ hns : NS (Expression.eval env acc0.1) (Expression.eval env acc0.2),
+      Affine.Point.some (Expression.eval env acc0.1) (Expression.eval env acc0.2) hns
+        = -goodOffsetAffinePt H hH)
+    (hb : ∀ k : Fin 256, Expression.eval env (rb.get k) = 0 ∨ Expression.eval env (rb.get k) = 1)
+    (hb' : ∀ k : Fin 256, Expression.eval env (sb.get k) = 0 ∨ Expression.eval env (sb.get k) = 1)
+    (htab : ∀ (j : Nat) (hj : j < 256) (v w : Fp), (v = 0 ∨ v = 1) → (w = 0 ∨ w = 1) →
+      ∃ hns : NS (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).1
+              else Expression.eval env (tables.x2 j).1)
+          else (if w = 0 then Expression.eval env (tables.x1 j).1
+            else Expression.eval env (tables.x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (tables.x0 j).2
+              else Expression.eval env (tables.x2 j).2)
+          else (if w = 0 then Expression.eval env (tables.x1 j).2
+            else Expression.eval env (tables.x3 j).2)),
+        Affine.Point.some _ _ hns
+          = (3 * sigma j) • goodOffsetAffinePt H hH
+            + (if v = 1 then (1 : ℤ) else 0) • Qpt
+            + (if w = 1 then (1 : ℤ) else 0) • Rpt)
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
+    (∀ j : Fin 255, Expression.eval env
+        ((mux4W (rb.get ⟨255 - j.val, by omega⟩) (sb.get ⟨255 - j.val, by omega⟩)
+          (tables.x0 j.val) (tables.x1 j.val) (tables.x2 j.val)
+          (tables.x3 j.val)).output (n + j.val * 12)).1
+      - Expression.eval env (jlAcc acc0 tables rb sb n j).1 ≠ 0)
+    ∧ (∀ j : Fin 255, Expression.eval env (jlAcc acc0 tables rb sb n j).1
+      - env.get (n + j.val * 12 + 6 + 2) ≠ 0)
+    ∧ (Expression.eval env
+        ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+          (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output
+          (n + 3060)).1
+      - Expression.eval env (jlOut acc0 tables rb sb n).1 ≠ 0)
+    ∧ (Expression.eval env (jlOut acc0 tables rb sb n).1
+      - env.get (n + 3060 + 6 + 2) ≠ 0)
+    ∧ (env.get (n + 3060 + 6 + 3) * env.get (n + 3060 + 6 + 3)
+      - Expression.eval env (jlOut acc0 tables rb sb n).1
+      - env.get (n + 3060 + 6 + 2) - Expression.eval env target.1 = 0)
+    ∧ (env.get (n + 3060 + 6 + 3)
+        * (Expression.eval env (jlOut acc0 tables rb sb n).1
+          - Expression.eval env target.1)
+      - Expression.eval env (jlOut acc0 tables rb sb n).2
+      - Expression.eval env target.2 = 0) :=
+  ⟨fun j => hj1_dx env eb rb sb Qpt Rpt H hH hgood acc0 tables target n hacc0 hb hb' htab hc
+      j.val j.isLt,
+   fun j => hj2_dx env eb rb sb Qpt Rpt H hH hgood acc0 tables target n hacc0 hb hb' htab hc
+      j.val j.isLt,
+   hjf1_dx env acc0 tables rb sb target n hc,
+   hjf2_dx env eb rb sb Qpt Rpt H hH hgood acc0 tables target n hacc0 hb hb' htab hc,
+   hjf3_row env acc0 tables rb sb target n hc,
+   hjf4_row env acc0 tables rb sb target n hc⟩
+
 end StandardECDSA

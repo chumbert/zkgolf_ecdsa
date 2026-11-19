@@ -548,9 +548,37 @@ or `maxRecDepth`:
   `ℤ`-smul ones, so each slot fact is converted with
   `show (k : ℤ) = ((k : Nat) : ℤ) from by norm_num, nsmul_eq_zsmul_int`.
 
-**What remains (G1-c).** The final `elmTo` denominators `hjf1`, `hjf2` and the
-`elmTo` row facts `hjf3`, `hjf4`, then discharging `CompleteWitness`'s
-denominator fields from `exists_goodOffset_famOf`.
+**G1-c, the final `elmTo` step — DONE (round 29).** `HonestLadder.lean` now also
+proves
+
+* `jointLadder_ladInv_255` — the fold invariant at the last step, in terms of
+  the sealed `jlOut` output;
+* `jointLadder_final_rows` — the ladder's rows split into the `mux4W` at index
+  255 and the final `elmTo`;
+* `elmToXu_group` — the `xu` allocated by `elmTo`'s `elmCore` is the
+  `x`-coordinate of `p + q`;
+* `elmTo_dx1`, `elmTo_row5`, `elmTo_row6` — the first `elmTo` denominator (which
+  is *guarded* by an explicit inverse row, so it never vanishes) and the fifth
+  and sixth `elmTo` rows;
+* `hjf1_dx` — `x(T_255) ≠ x(C_255)`, from the guard row alone (no offset
+  hypothesis);
+* `hjf2_dx` — `x(C_255) ≠ x(C_255 + T_255)`.  Here `C_255 = H + B_255` (because
+  `(-1)^256 = 1`) and `T_255 = -3·H + B0_255` (because `σ_255 = -1`), so the two
+  bad equations are `T_255 = O` and `2·C_255 + T_255 = O` — the `ladDbl` slots
+  at `j = 255`, ruled out by `nsmul_ne_of_slot` and `X_ne_of_avoids_zsmul` with
+  `a = 1`, `b = -2`;
+* `hjf3_row`, `hjf4_row` — the fifth and sixth `elmTo` rows of the final step;
+* `jointLadder_denominators` — **all six ladder fields of `CompleteWitness`**
+  (`hj1`, `hj2`, `hjf1`, `hjf2`, `hjf3`, `hjf4`) bundled, with no hypothesis
+  mentioning a denominator.
+
+**What remains (G1-c).** Nothing on the ladder side.  The remaining
+`CompleteWitness` fields (`hov`, `hQ`, `hR`, `hH`, `hr`, `ht`, `hb … hb''`,
+`hd0 … hd3`, `hle`, `hle'`, `hleg`, `hfb0`, `hfb`, `hshy`, `hs1 … hs5`) are
+either already proved (`hfb0`, `hfb`, `hshy`, `hs1 … hs5` in
+`Phases/HonestDenominators.lean` / `Phases/HonestShifted.lean`) or are
+witness-value facts that only become available once the concrete environment
+exists — i.e. they belong to G2.
 
 ### G2 — T16 concrete witness environment
 

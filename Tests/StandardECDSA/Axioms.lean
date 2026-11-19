@@ -179,3 +179,17 @@ import StandardECDSA.HonestLadder
 #print axioms StandardECDSA.elmXu_group
 #print axioms StandardECDSA.hj1_dx
 #print axioms StandardECDSA.hj2_dx
+
+/-! ## Honest-witness final `elmTo` step (G1-c) -/
+
+#print axioms StandardECDSA.jointLadder_ladInv_255
+#print axioms StandardECDSA.elmToXu_group
+#print axioms StandardECDSA.elmTo_dx1
+#print axioms StandardECDSA.elmTo_row5
+#print axioms StandardECDSA.elmTo_row6
+#print axioms StandardECDSA.jointLadder_final_rows
+#print axioms StandardECDSA.hjf1_dx
+#print axioms StandardECDSA.hjf2_dx
+#print axioms StandardECDSA.hjf3_row
+#print axioms StandardECDSA.hjf4_row
+#print axioms StandardECDSA.jointLadder_denominators

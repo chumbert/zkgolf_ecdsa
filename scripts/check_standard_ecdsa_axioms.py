@@ -64,6 +64,18 @@ REQUIRED = {
     'StandardECDSA.elmXu_group',
     'StandardECDSA.hj1_dx',
     'StandardECDSA.hj2_dx',
+    # honest-witness final elmTo step (G1-c)
+    'StandardECDSA.jointLadder_ladInv_255',
+    'StandardECDSA.elmToXu_group',
+    'StandardECDSA.elmTo_dx1',
+    'StandardECDSA.elmTo_row5',
+    'StandardECDSA.elmTo_row6',
+    'StandardECDSA.jointLadder_final_rows',
+    'StandardECDSA.hjf1_dx',
+    'StandardECDSA.hjf2_dx',
+    'StandardECDSA.hjf3_row',
+    'StandardECDSA.hjf4_row',
+    'StandardECDSA.jointLadder_denominators',
     # witness generation
     'StandardECDSA.Witness.generateSeed_complete',
     # group order
