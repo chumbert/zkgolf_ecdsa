@@ -482,8 +482,30 @@ bound are untouched, and `exists_goodOffset_famOf` is generic in the targets so
 no proof needed changing.  Full suite re-run green (77 audit roots, contract,
 46/46 regressions).
 
-**What remains (G1-c).** The five shifted-table denominators `hs1 … hs5` and the
-256-step ladder denominators `hj1`, `hj2`, `hjf1 … hjf4`.
+**G1-c, shifted-table denominators — DONE (round 27).**
+`StandardECDSA/Phases/HonestShifted.lean` (new file) proves `hs1_dx … hs5_dx`:
+
+| theorem | statement |
+|---|---|
+| `hs1_dx` | `H.X - x(2H) ≠ 0` |
+| `hs2_dx` | `x(Q) - x(3H) ≠ 0` |
+| `hs3_dx` | `x(R) - x(3H) ≠ 0` |
+| `hs4_dx` | `x(R) - x(3H+Q) ≠ 0` |
+| `hs5_dx` | `x(R) - x(-3H+Q) ≠ 0` |
+
+Each is `X_ne_of_avoids_sharp` with the two bad equations read off the matching
+`sh` slot pair (`famOf_target_sh0f … sh4t`).  `hs5` needs one extra step: the
+wire holds `-3H + Q = -(3H - Q)` and negation preserves `x`, so the bad
+equations are `[3]H = Q - R` and `[3]H = Q + R` — exactly the corrected `k = 4`
+slots of FINDING 3.  Two rewrite facts recorded: `toAff_zero` must be a separate
+lemma (listing `toAff` in the same `simp only` set as `toAff_toProjective`
+unfolds `toAff` first and kills the match), and `h4pt`/`h5pt'` must be passed
+directly (the goal is syntactically the hypothesis, so `rw …; simp` reports
+"no goals to be solved").
+
+**What remains (G1-c).** The 256-step ladder denominators `hj1`, `hj2`,
+`hjf1 … hjf4`, then discharging `CompleteWitness`'s denominator fields from
+`exists_goodOffset_famOf`.
 
 ### G2 — T16 concrete witness environment
 

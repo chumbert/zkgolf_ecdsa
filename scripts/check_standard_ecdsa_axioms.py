@@ -111,6 +111,23 @@ REQUIRED = {
     'StandardECDSA.Phases.famOf_target_shift_true',
     'StandardECDSA.Phases.fbShift_dx',
     'StandardECDSA.Phases.hshy_dx',
+    'StandardECDSA.Phases.toAff_zero',
+    'StandardECDSA.Phases.famOf_target_sh',
+    'StandardECDSA.Phases.famOf_target_sh0f',
+    'StandardECDSA.Phases.famOf_target_sh0t',
+    'StandardECDSA.Phases.famOf_target_sh1f',
+    'StandardECDSA.Phases.famOf_target_sh1t',
+    'StandardECDSA.Phases.famOf_target_sh2f',
+    'StandardECDSA.Phases.famOf_target_sh2t',
+    'StandardECDSA.Phases.famOf_target_sh3f',
+    'StandardECDSA.Phases.famOf_target_sh3t',
+    'StandardECDSA.Phases.famOf_target_sh4f',
+    'StandardECDSA.Phases.famOf_target_sh4t',
+    'StandardECDSA.Phases.hs1_dx',
+    'StandardECDSA.Phases.hs2_dx',
+    'StandardECDSA.Phases.hs3_dx',
+    'StandardECDSA.Phases.hs4_dx',
+    'StandardECDSA.Phases.hs5_dx',
 }
 
 

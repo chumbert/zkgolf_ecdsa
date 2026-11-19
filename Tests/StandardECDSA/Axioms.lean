@@ -39,6 +39,7 @@ import StandardECDSA.Phases.Cost
 import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
 import StandardECDSA.Phases.HonestDenominators
+import StandardECDSA.Phases.HonestShifted
 
 /-! ## End-to-end -/
 
@@ -143,3 +144,20 @@ import StandardECDSA.Phases.HonestDenominators
 #print axioms StandardECDSA.Phases.famOf_target_shift_true
 #print axioms StandardECDSA.Phases.fbShift_dx
 #print axioms StandardECDSA.Phases.hshy_dx
+#print axioms StandardECDSA.Phases.toAff_zero
+#print axioms StandardECDSA.Phases.famOf_target_sh
+#print axioms StandardECDSA.Phases.famOf_target_sh0f
+#print axioms StandardECDSA.Phases.famOf_target_sh0t
+#print axioms StandardECDSA.Phases.famOf_target_sh1f
+#print axioms StandardECDSA.Phases.famOf_target_sh1t
+#print axioms StandardECDSA.Phases.famOf_target_sh2f
+#print axioms StandardECDSA.Phases.famOf_target_sh2t
+#print axioms StandardECDSA.Phases.famOf_target_sh3f
+#print axioms StandardECDSA.Phases.famOf_target_sh3t
+#print axioms StandardECDSA.Phases.famOf_target_sh4f
+#print axioms StandardECDSA.Phases.famOf_target_sh4t
+#print axioms StandardECDSA.Phases.hs1_dx
+#print axioms StandardECDSA.Phases.hs2_dx
+#print axioms StandardECDSA.Phases.hs3_dx
+#print axioms StandardECDSA.Phases.hs4_dx
+#print axioms StandardECDSA.Phases.hs5_dx
