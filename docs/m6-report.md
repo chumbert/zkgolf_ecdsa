@@ -465,6 +465,23 @@ coefficient `2`, target `0`).  `hshy_dx` does **not** need the doubling formula:
 `2 • Hpt ≠ 0` plus `H.Y = 0 → Hpt = -Hpt` (via `Affine.Point.neg_some` and
 `negY_eq_neg`) gives `2 • Hpt = Hpt + Hpt = Hpt + (-Hpt) = 0`, a contradiction.
 
+**FINDING 3 (round 26) — the `sh` slot group was incomplete; FIXED.**
+While deriving the five shifted-table denominators it turned out that the
+`Fin 5 × Bool` slot group of `Math/OffsetFamily.lean` had the wrong targets for
+`k = 4`.  The five denominators are `x(2H) - x(H)`, `x(3H) - x(Q)`,
+`x(3H) - x(R)`, `x(3H+Q) - x(R)` and `x(-3H+Q) - x(R)` (the last is the
+denominator of `affAdd m1 r`, wire `off7 + 22`, i.e. `hs5` of
+`CompleteWitness`).  A vanishing `x(-3H+Q) - x(R)` gives `[3]H = Q - R` or
+`[3]H = Q + R`, but the family listed `-Q` and `-Q - 2R` instead: `-Q`
+duplicates the `k = 1, s = true` slot and `-Q - 2R` is the bad equation of no
+denominator at all.  So `GoodOffset` did **not** imply `hs5`.
+
+The targets are corrected to `Q - R` / `Q + R`.  The slot count is unchanged
+(1,293), so `famOf_m`, `exists_goodOffset_famOf` and the `Fin 1294` candidate
+bound are untouched, and `exists_goodOffset_famOf` is generic in the targets so
+no proof needed changing.  Full suite re-run green (77 audit roots, contract,
+46/46 regressions).
+
 **What remains (G1-c).** The five shifted-table denominators `hs1 … hs5` and the
 256-step ladder denominators `hj1`, `hj2`, `hjf1 … hjf4`.
 

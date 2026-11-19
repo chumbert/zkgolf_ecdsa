@@ -34,6 +34,30 @@ equations, one per (denominator, sign) pair.
 
 Total: **1,293 slots**.
 
+### The five `sh` slots (corrected)
+
+The five shifted-table denominators are `x(2H) - x(H)`, `x(3H) - x(Q)`,
+`x(3H) - x(R)`, `x(3H+Q) - x(R)` and `x(-3H+Q) - x(R)` (the last one is the
+denominator of `affAdd m1 r`, wire `off7 + 22`).  Their bad equations are
+
+| `k` | denominator | `s = false` | `s = true` |
+|---|---|---|---|
+| 0 | `x(2H) - x(H)` | `[1]H = 0` | `[3]H = 0` |
+| 1 | `x(3H) - x(Q)` | `[3]H = Q` | `[3]H = -Q` |
+| 2 | `x(3H) - x(R)` | `[3]H = R` | `[3]H = -R` |
+| 3 | `x(3H+Q) - x(R)` | `[3]H = R - Q` | `[3]H = -R - Q` |
+| 4 | `x(-3H+Q) - x(R)` | `[3]H = Q - R` | `[3]H = Q + R` |
+
+**FINDING 3 (round 26).**  An earlier version of this file gave the `k = 4`
+targets as `-Q` and `-Q - 2R`.  Those are not the bad equations of any
+denominator of the circuit: `-Q` duplicates the `k = 1, s = true` slot, and
+`-Q - 2R` arises from no pair of table entries.  The two equations that *are*
+missing, `[3]H = Q - R` and `[3]H = Q + R`, are exactly the ones a vanishing
+`x(-3H+Q) - x(R)` produces, so the old family did not cover `hs5` of
+`CompleteWitness`.  The targets are corrected above; the slot count is
+unchanged (1,293), so `famOf_m`, `exists_goodOffset_famOf` and the candidate
+bound `Fin 1294` are unaffected.
+
 The ladder index runs to 256 because the final `elmTo` step is the same shape as
 the 255 returning `elm` steps: `elmCore p q` guards only `x(q) - x(p)` and
 leaves `x(p) - x(p + q)` implied, so both denominators occur at every step,
@@ -170,7 +194,7 @@ noncomputable def targetOf (env : Environment Fp) (eb rb sb : Vector E 256)
       else if k.val = 2 then (if s then (-Rpt).toProjective else Rpt.toProjective)
       else if k.val = 3 then
         (if s then (-Rpt + -Qpt).toProjective else (Rpt + -Qpt).toProjective)
-      else (if s then (-Qpt + (-2 : ℤ) • Rpt).toProjective else (-Qpt).toProjective)
+      else (if s then (Qpt + Rpt).toProjective else (Qpt + -Rpt).toProjective)
   | .inr (.inr (.inr (.inr (.inl (j, false))))) =>
       (sigmaZ j.val • (ladOff env Qpt Rpt rb sb j.val
         + -((rBitAt env rb j.val) • Qpt) + -((tBitAt env sb j.val) • Rpt))).toProjective
