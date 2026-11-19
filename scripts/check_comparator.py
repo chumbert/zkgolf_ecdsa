@@ -26,8 +26,9 @@ for path, revision in [(checkout, REV), (checkout / '.lake/packages/lean4export'
 env = dict(os.environ,
     COMPARATOR_LANDRUN=str(checkout / 'scripts/fake-landrun.sh'),
     COMPARATOR_LEAN4EXPORT=str(checkout / '.lake/packages/lean4export/.lake/build/bin/lean4export'))
-base = json.loads((root / 'configs/ECDSA_P256_Digest.json').read_text())
-smoke = dict(base, challenge_module='Tests.Comparator.Challenge',
+base_digest = json.loads((root / 'configs/ECDSA_P256_Digest.json').read_text())
+base_projected = json.loads((root / 'configs/ECDSA_P256_Projected.json').read_text())
+smoke = dict(base_digest, challenge_module='Tests.Comparator.Challenge',
              theorem_names=['ComparatorSmoke.relation'], definition_names=[])
 cases = [
     ('valid-relation', dict(smoke, solution_module='Tests.Comparator.Valid'), True,
@@ -36,7 +37,9 @@ cases = [
      "Illegal axiom detected: 'sorryAx'"),
     ('changed-statement', dict(smoke, solution_module='Tests.Comparator.Mismatch'), False,
      'Challenge and solution theorem statement do not match'),
-    ('challenge-template-is-not-solution', dict(base, solution_module=base['challenge_module']), False,
+    ('challenge-template-is-not-solution-digest', dict(base_digest, solution_module=base_digest['challenge_module']), False,
+     "Illegal axiom detected: 'sorryAx'"),
+    ('challenge-template-is-not-solution-projected', dict(base_projected, solution_module=base_projected['challenge_module']), False,
      "Illegal axiom detected: 'sorryAx'"),
 ]
 logs = root / 'dist/comparator-checks'
@@ -61,6 +64,7 @@ with tempfile.TemporaryDirectory(prefix='ecdsa-comparator-') as temp:
     'scope': 'local development shim; no sandbox, no full circuit proof',
     'trusted_relation': 'Challenge.Specs.ECDSAP256.Spec',
     'trusted_wrapper_sha256': hashlib.sha256((root / 'Challenge/Specs/ECDSAP256.lean').read_bytes()).hexdigest(),
+    'trusted_wrapper_projected_sha256': hashlib.sha256((root / 'Challenge/Specs/ECDSAP256Projected.lean').read_bytes()).hexdigest(),
     'circuit_field': 'P-256 base field',
     'upstream_relation': 'ValidEcdsaWitness',
     'cases': results}, indent=2) + '\n')

@@ -15,5 +15,8 @@ lean_exe baseline where
 lean_lib ECDSA where
   srcDir := "vendor/longfellow"
 
+lean_lib SolutionProjected where
+  globs := #[.submodules `Solution]
+
 lean_exe projected where
   root := `Baseline.Projected.Main

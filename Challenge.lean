@@ -1,1 +1,2 @@
 import Challenge.Instances.ECDSA_P256_Digest.Challenge
+import Challenge.Instances.ECDSA_P256_Projected.Challenge
