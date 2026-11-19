@@ -22,6 +22,15 @@ namespace StandardECDSA.Phases
 open StandardECDSA.Gadgets
 open WeierstrassCurve
 
+/-- The operations of `shiftedTables` are the second component of its run.
+
+Stated with opaque arguments so that the `rfl` proof never unfolds the
+`do`-notation bind chain; parents use it to convert a `Soundness` hypothesis
+about `(shiftedTables h q r n).2` into one about `(shiftedTables h q r).operations n`
+without a definitional-unfolding check. -/
+theorem shiftedTables_snd (h q r : Pt) (n : Nat) :
+    (shiftedTables h q r n).2 = (shiftedTables h q r).operations n := rfl
+
 /-! ## Offset-generic row-level soundness -/
 
 /-- `sc c e` evaluates to `c` times the value of `e`. -/

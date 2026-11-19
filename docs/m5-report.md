@@ -1,125 +1,116 @@
 # M5 report (T17 whole-circuit assembly) — PARTIAL
 
-## Timing
+Timing: before = `1795047795`, after = `1795052182`, elapsed_seconds = **4387**.
 
-| | raw `date -u +%s` |
+## Status
+
+M5 is **not** complete. `main_soundness` is drafted in full but blocked by a single
+elaboration problem (see "Exact obstruction"). Everything else in the repo is green.
+
+## Landed this round (committed, builds green)
+
+| File | Change |
 |---|---|
-| before | `1795044773` |
-| after | `1795047738` |
-| **elapsed_seconds** | **2965** |
+| `StandardECDSA/Phases/TableSemantics.lean` | new theorem `shiftedTables_snd (h q r : Pt) (n : Nat) : (shiftedTables h q r n).2 = (shiftedTables h q r).operations n := rfl` — stated with opaque arguments so the `rfl` never unfolds the `do`-notation bind chain. Lets parents convert a `Soundness` hypothesis about `(shiftedTables h q r n).2` into one about `(shiftedTables h q r).operations n` without a definitional-unfolding check. |
+| `StandardECDSA/Phases/LadderSemantics.lean` | `jointLadder_spec`'s constraint hypothesis simplified from the three-parameter form `(L : Operations Fp) (hc : Soundness env L) (hL : (jointLadder … n).2 = L)` to the direct form `(hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2))`. The internal `hL2 : (jointLadder … n).2 = (jointLadder …).operations n := rfl` is cheap because the arguments are opaque variables. |
 
-## Status: M5 is NOT complete
-
-Proved in this round:
-
-| theorem | file |
-|---|---|
-| `cmpPhase_sound` | `StandardECDSA/Main.lean` |
-| `main_ops` | `StandardECDSA/Main.lean` |
-| `soundness_append9` | `StandardECDSA/Main.lean` |
-
-Not yet proved (M5 targets): `main_soundness`, `main_complete_with_seed`,
-`main_completeness`, `main_accepts_iff_standard`.
-
-## The blocking problem found and fixed this round
-
-`ConstraintsHold.Soundness env L` is a `def`, so **every** elaboration step that
-`whnf`s it also `whnf`s `L`.  For `L` containing a comparator
-(`assertLtOrderOf nSubOne a`), `whnf L` unfolds `ltLoop` over the 68-run list,
-and that reduction is **exponential in the number of zero runs** (the `do` block
-of `ltLoop` uses `sum` twice, so each zero-run level doubles the work).  Measured
-threshold: 16 runs whnf fine, 20 runs already exceeds 200 000 heartbeats, and
-4 000 000 heartbeats is still not enough for 68 runs.
-
-Consequences observed (all reproduced in a scratch file):
-
-* `example ... := hc` (term mode) fails with `timeout at whnf`;
-* `exact hc` fails; `by assumption` succeeds (no `whnf`);
-* applying `assertLtOrderOf_sound nSubOne ... h` fails at `h`;
-* `soundness_append3 hc` fails at `hc`.
-
-### Fix
-
-`boundRunsOf` now dispatches on the two bounds the circuit actually uses and
-returns **sealed literal run lists** `nSubOneRuns` / `pnRuns`
-(`@[irreducible]`, 68 runs each, 34 zero runs each — matching the plan's
-"34 maximal zero runs" count).  With the run list irreducible, `whnf` of the
-comparator circuit is stuck and therefore cheap, while the kernel still reduces
-it for `rfl`/`decide` under `with_unfolding_all`.
-
-Two `decide` proofs in `Gadgets/Cost.lean` had to become
-`with_unfolding_all decide` because plain `decide` respects the irreducibility
-hint.
-
-Also changed: `assertLtOrderOf_sound` / `assertLtOrderGuardedOf_sound` now take
-`hrows` immediately after the offset (before `hbool`/`hpref`/`hcover`), so the
-bound can stay a metavariable while the hypothesis is checked.  Call sites in
-`Gadgets/LtExplicit.lean` were updated.
-
-## Checks
+## Verified checks
 
 ```
-$ lake build StandardECDSA.Main
-Build completed successfully (9020 jobs).
-
-$ lake build
-Build completed successfully (17893 jobs).
-# only the pre-existing Challenge/Instances/ECDSA_P256_Digest/Challenge.lean sorries
-
-$ grep -rn "sorry" StandardECDSA/
-(no output, exit 1)
-
-$ lake exe standardEcdsaCheck --count-only
-Standard P-256 ECDSA circuit (6 fixed inputs)
-allocations=4628 rows=4634 score=9262
-
-$ python3 scripts/check_axioms.py
-Tests/Axioms.lean: 26 roots passed the permitted-axiom audit
+lake build StandardECDSA.Main      -> Build completed successfully (9020 jobs)
+grep -rn "sorry" StandardECDSA/    -> exit 1 (zero hits)
+lake exe standardEcdsaCheck --count-only
+  -> allocations=4628 rows=4634 score=9262
 ```
 
-Cost is unchanged at the plan budget 4628/4634 = 9262.
+## What is proved in the draft of `main_soundness` (in `/tmp/s32.lean`, not yet in `Main.lean`)
 
-## Files changed
+All of the following compile:
+
+- `soundness_append9` split of `hc` into the nine stage hypotheses `h1 … h9`.
+- `seedPhase_sound`, `curvePhase_sound`, `nonzeroPhase_sound`, `bitsPhase_sound`,
+  `bindPhase_sound`, `cmpPhase_sound` applied.
+- `fixedBase_dx` + `fixedBase_spec` applied; `hEpP : some (eval pp.1) (eval pp.2) hnsEp
+  = some (eval hxE) (eval hyE) hHns + toAffineLift (digestNat env eb • Gpt)`.
+- `shiftedTables_hy`, `shiftedTables_dx`, `shiftedTables_htab` applied (via `h8'`
+  obtained with `Eq.mp (congrArg …) (shiftedTables_snd …) h8`).
+- `hacc0`, `hT`, `hneg` (the `negPt` facts for the ladder's initial accumulator and
+  final target).
+- `main_group_algebra` (already proved) reduces the three-term equation
+  `E•G + r•Q + t•R = 0` to the affine `hEpP`/`hTgt`/`hneg` inputs.
+- `x_mod_order_iff_lift` and the final `standard_iff_signaturePoint` assembly.
+
+The **only** missing piece is the `hc` argument of `jointLadder_spec`.
+
+## Exact obstruction
+
+`main`'s body binds `ep := fixedBase (s.1.hx, s.1.hy) (bitsPhase n3).1.eb n6` and passes
+`(ep.1.1, -ep.1.2)` as the ladder target. After `rw [main_ops] at hc` and
+`soundness_append9`, the ladder hypothesis is
 
 ```
- StandardECDSA/Gadgets/Cost.lean      |  6 +++--
- StandardECDSA/Gadgets/LtExplicit.lean|  4 ++--
- StandardECDSA/Gadgets/Scalar.lean    | 12 ++++++++--
- StandardECDSA/Gadgets/Semantics6.lean|  8 +++---
- StandardECDSA/Main.lean              | ~90 ++++++++++++++++++++++++++++++++
+h9 : ConstraintsHold.Soundness env
+       ((jointLadder (hxE, -hyE) ((shiftedTables … n7).1) rb sb
+           (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1,
+            -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2)) n8).2)
 ```
 
-## Remaining M5 work (exact)
+`jointLadder_spec` needs the same hypothesis with the target written `(pp.1, -pp.2)`,
+where `pp` is an opaque local with `hp : (fixedBase …).output n6 = pp`. `pp` must be
+opaque because `Expression.eval` is a *pattern-matching def*
+(`Clean/Circuit/Expression.lean:86`), so any defeq check mentioning
+`Expression.eval env ((fixedBase … n6).1.1)` unfolds `fixedBase`'s 128-step
+`foldlRange` and dies.
 
-1. `main_soundness`: `rw [main_ops] at hc` then `soundness_append9 hc` gives the
-   nine stage hypotheses; then apply `seedPhase_sound`, `curvePhase_sound`,
-   `nonzeroPhase_sound`, `bitsPhase_sound`, `bindPhase_sound`,
-   `cmpPhase_sound`, `fixedBase_spec`, `shiftedTables_spec`,
-   `jointLadder_spec`.  Still needed:
-   * `eval_linComb : Expression.eval env (linComb v lo len) = leSum (fun i : Fin len => Expression.eval env (v.get ⟨lo + i.val, _⟩))`
-     (induction on `len`, `List.range_succ`/`List.foldl_append`, `Fin.sum_univ_castSucc`);
-   * `prefVal_rev : prefVal (fun j => f (255 - j)) 256 = leNat (fun i : Fin 256 => f i)`
-     (`prefVal_eq_sum` + `Finset.sum_range_reflect`);
-   * scalar bridges `leNat rb = r.val`, `leNat sb = n - s.val`,
-     `digestNat env eb = Digest.toNat ⟨digestLo, digestHi⟩`;
-   * group algebra `ep = H + E•G` and `-ep = r•Q + t•R - H` ⇒ `E•G + r•Q + t•R = 0`,
-     transported with `addE_toMathlib`/`mulG_toMathlib`/`mulP_toMathlib`;
-   * `x_mod_order_iff_lift` for `R.X.val % n = r.val`;
-   * `(standard_iff_signaturePoint ...).mpr`.
-2. `main_complete_with_seed`, `main_completeness`, `main_accepts_iff_standard`:
-   **no phase completeness lemmas exist yet** (`grep` of `StandardECDSA/Phases/`
-   for `completeness`/`_complete` returns nothing).  Only gadget completeness
-   exists (`assertBoolMain_completeness`, `nonzeroMain_completeness`,
-   `selMain_completeness`, `muxConst4Main_completeness`,
-   `affAddMain_completeness`, `affDoubleMain_completeness`,
-   `elmMain_completeness`, `elmToMain_completeness`,
-   `isOnCurveMain_completeness`, `pointEqualityMain_completeness`,
-   `mux4Main_completeness`, `assertLtOrderOfMain_completeness`,
-   `assertLtOrderGuardedOfMain_completeness`).  Building phase completeness is a
-   large additional task.
+Every route to convert `h9` fails:
 
-## Note on `maxHeartbeats` / `maxRecDepth`
+1. `rw [hp1, hp2] at h9` (with `hp1 : (fixedBase … n6).1.1 = pp.1`,
+   `hp2 : (fixedBase … n6).1.2 = pp.2`) — `rw` unfolds the `Soundness` def while
+   abstracting, so the resulting hypothesis has the unfolded
+   `…forAllNoOffset {…}` type; the subsequent defeq check against
+   `Soundness env ((jointLadder … (pp.1, -pp.2) n8).2)` then whnf-unfolds
+   `(jointLadder …).2` and reports
+   `maximum recursion depth has been reached`.
+2. `Eq.mp (congrArg (fun L => Soundness env L) hL) h9` with
+   `hL : (jointLadder … (X, Y) n8).2 = L` — the `hL` argument of the spec then needs
+   `(jointLadder … (pp.1, -pp.2) n8).2 = L`, whose defeq check against `hL` whnf-unfolds
+   the 255-step fold: `maximum recursion depth has been reached`.
+3. `Eq.mp (congrArg (fun t => Soundness env ((jointLadder … t n8).2)) htg) h9` with
+   `htg : (X, Y) = (pp.1, -pp.2)` — the `Eq.mp` application itself reports
+   `maximum recursion depth has been reached` (the motive's `f LHS` is compared with
+   `h9`'s type, which whnf-unfolds the fold).
+4. `let pp : Pt := (fixedBase …).output n6` (transparent) — then `Expression.eval env pp.1`
+   unfolds `pp` and hence `fixedBase`: `maximum recursion depth has been reached`.
+5. `set pp := …` — the `set` tactic itself reports
+   `maximum recursion depth has been reached` at the `set` line.
 
-Neither was changed.  The `@[irreducible]` sealing is a definitional change, not
-a budget change; it is what makes the concrete-bound comparator reasoning
-tractable at the default 200 000 heartbeats.
+Raising `maxRecDepth` (diagnostic only, not committed) converts the failure into
+`(deterministic) timeout at whnf, maximum number of heartbeats (200000) has been reached`,
+confirming this is a genuine 128-step unfolding, not a shallow recursion limit.
+
+## Proposed fix (next round)
+
+Make `(fixedBase h eb n).1` cheap to whnf by sealing the fold's output behind an
+`@[irreducible]` helper, e.g. in `Phases/FixedBaseSemantics.lean`:
+
+```lean
+@[irreducible] def fixedBaseOut (h : Pt) (eb : Vector E 256) (n : Nat) : Pt :=
+  (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+      (fixedBaseBody eb fixedTables) (fixedBaseBody_constantLength eb fixedTables)).output (n + 4)
+```
+
+and define `fixedBase h eb n = (fixedBaseOut h eb n, <ops>)`. Then
+`(fixedBase … n6).1` whnf-reduces to the stuck term `fixedBaseOut … n6`, so
+`h9`'s type becomes cheap, `hp1`/`hp2` become cheap, and `rw [hp1, hp2] at h9`
+(or even a plain defeq check) succeeds. `fixedBase_spec` / `fixedBase_ops` /
+`fixedBase_dx` then need `unfold fixedBaseOut` at the points where the fold is
+actually analysed — a mechanical change.
+
+The same seal should be applied to `jointLadder`'s final target if the ladder's own
+`hTgt` turns out to need it.
+
+## Next milestone
+
+M5-1 (`main_soundness`) with the `fixedBaseOut` seal, then M5-2 (phase-level
+completeness lemmas, `main_complete_with_seed`, `main_completeness`,
+`main_accepts_iff_standard`).

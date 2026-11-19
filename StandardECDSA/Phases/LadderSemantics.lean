@@ -529,7 +529,7 @@ theorem jointLadder_spec (env : Environment Fp) (Hpt Qpt Rpt : Affine.Point Wp)
           = (3 * sigma j) • Hpt + (if v = 1 then (1 : ℤ) else 0) • Qpt
             + (if w = 1 then (1 : ℤ) else 0) • Rpt)
     (hT : NS (Expression.eval env target.1) (Expression.eval env target.2))
-    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target).operations n)) :
+    (hc : ConstraintsHold.Soundness env ((jointLadder acc0 tables rb sb target n).2)) :
     ∃ hns : NS (Expression.eval env target.1) (Expression.eval env target.2),
       Affine.Point.some (Expression.eval env target.1) (Expression.eval env target.2) hns
         = (leNat (fun k : Fin 256 => (Expression.eval env (rb.get k)).val) : ℤ) • Qpt
@@ -541,7 +541,9 @@ theorem jointLadder_spec (env : Environment Fp) (Hpt Qpt Rpt : Affine.Point Wp)
   -- unfolds the whole 255-step fold and exceeds the recursion budget.  We
   -- therefore split with `rw` (syntactic matching) rather than by applying
   -- `soundness_append`.
-  rw [jointLadder_ops] at hc
+  have hL2 : (jointLadder acc0 tables rb sb target n).2
+      = (jointLadder acc0 tables rb sb target).operations n := rfl
+  rw [hL2, jointLadder_ops] at hc
   simp only [ConstraintsHold.Soundness] at hc
   rw [Operations.forAllNoOffset_append] at hc
   obtain ⟨hc1, hc2⟩ := hc
