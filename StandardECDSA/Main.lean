@@ -2308,10 +2308,15 @@ theorem soundness_of_completeness {env : ProverEnvironment Fp} {ops : Operations
     rw [hs] at hs'
     simp at hs'
 
-/-- **Acceptance equivalence for the actual circuit `main`.**  For an honest
-witness environment, the circuit's constraints hold exactly when the six inputs
-satisfy the standard P-256 ECDSA verification predicate. -/
-theorem main_accepts_iff_standard (inp : Var Input Fp) (penv : ProverEnvironment Fp) (n : Nat)
+/-- **Acceptance equivalence for the actual circuit `main`, given the two
+structural facts about its operation list.**  For an honest witness environment,
+the circuit's constraints hold exactly when the six inputs satisfy the standard
+P-256 ECDSA verification predicate.
+
+The `hl`/`hs` hypotheses are *proved* for `main` in `StandardECDSA/NoLookupSub.lean`
+(`main_shallowLookups_nil`, `main_subcircuits_nil`); the hypothesis-free form is
+`main_accepts_iff_standard` there. -/
+theorem main_accepts_iff_standard_of_nil (inp : Var Input Fp) (penv : ProverEnvironment Fp) (n : Nat)
     (hw : penv.UsesLocalWitnessesCompleteness n ((main inp).operations n))
     (h : CompleteWitness inp penv n)
     (hl : ((main inp).operations n).shallowLookups = [])

@@ -204,36 +204,62 @@ environment must be built from `FlatOperation.witgen` and then shown to satisfy
 executably (`lake exe standardEcdsaTests` exercises exactly this path) but the
 Lean-level construction is not done.
 
-### G3 — `NoLookupSub`
+### G3 — `NoLookupSub` — **CLOSED**
 
-`main_accepts_iff_standard` takes `hl : ((main inp).operations n).shallowLookups
-= []` and `hs : ((main inp).operations n).subcircuits = []`. Both are true by
-construction (the circuit never uses `Circuit.lookup` or `Circuit.subcircuit`),
-but they are not yet proved.
+`main_accepts_iff_standard` used to take `hl : ((main inp).operations
+n).shallowLookups = []` and `hs : ((main inp).operations n).subcircuits = []`.
+Both are now *proved*.
 
-**Obstruction (diagnosed, not worked around).**
+**What was built.** `StandardECDSA/NoLookupSub.lean` (new file, ~450 lines):
 
-1. `Operations.shallowLookups` and `Operations.subcircuits` have no
-   `@[circuit_norm]` lemmas in `clean` (only `subcircuits_nil/assert/witness/
-   lookup/interact/subcircuit/append` exist, and nothing at all for
-   `shallowLookups`).
-2. `simp [circuit_norm, main_ops]` on the concrete 4 634-operation list blows
-   up: the goal retains the whole nine-stage `Operations.localLength` nest, and
-   the `main_ops` rewrite leaves `sorry`-shaped metavariables in the offsets.
-3. The compositional route needs a `NoLookupSub` predicate mirroring the
-   `CostIs` API (`pure`/`bind`/`map`/`witnessField`/`assertZero`/
-   `mapFinRange`/`foldlRange`/`append`). The phase level is free — the `_ops`
-   lemmas (`seedPhase_ops`, `curvePhase_ops`, …, `main_ops'`) already exist —
-   but the gadget level is not: `ExplicitCircuit` gives
-   `operations := fun n => (g n).2` for `isOnCurve`, `pointEquality` and
-   `assertZeroLazy`, i.e. *no explicit operation list*, so `NoLookupSub` for
-   `assertZeroLazy` must be proved by induction on the expression structure,
-   mirroring `azlLen`/`azlLoopCost`. (`mat` is fine: `matOps` is explicit and
-   manifestly `.witness`/`.assert`-only.)
+* `NoLookupSub (ops : Operations Fp) : Prop := ops.shallowLookups = [] ∧
+  ops.subcircuits = []`, mirroring the `CostIs` API of
+  `Challenge/Utils/CostR1CS.lean`;
+* preservation lemmas for the `Circuit` combinators — `nls_pure`, `nls_bind`,
+  `nls_map`, `nls_witnessField`, `nls_assertZero`, `nls_mapFinRange`,
+  `nls_foldlRange`, `nls_append`, `nls_flatten`, `nls_matOps`, `nls_mat`;
+* preservation lemmas for every gadget — `nls_assertZeroLazy` (by induction on
+  the expression structure, mirroring `azlLen`/`azlLoopCost`, since
+  `ExplicitCircuit` gives `operations := fun n => (g n).2` there),
+  `nls_isOnCurve`, `nls_pointEquality`, `nls_nonzero`, `nls_assertBool`,
+  `nls_sel`, `nls_muxConst4`, `nls_mux4`, `nls_affAdd`, `nls_affDouble`,
+  `nls_elm`, `nls_elmTo`, `nls_assertLtOrderOf`, `nls_assertLtOrderGuardedOf`,
+  `nls_hint`, `nls_bitBody`, `nls_bitVec`;
+* preservation lemmas for every phase — `nls_seedPhase`, `nls_curvePhase`,
+  `nls_nonzeroPhase`, `nls_bitsPhase`, `nls_bindPhase`, `nls_cmpPhase`,
+  `nls_fixedBaseBody`, `nls_fixedBase`, `nls_shiftedTables`,
+  `nls_jointLadderBody`, `nls_jointLadderFinal`, `nls_jointLadder`;
+* `nls_main`, and the two exported facts
 
-So closing G3 means redoing, for a second predicate, the same
-induction-on-expression work that the cost certificates already do. It is
-mechanical but not small, and it was not completed in this round.
+  ```lean
+  theorem main_shallowLookups_nil (inp : Var Input Fp) (n : ℕ) :
+      ((main inp).operations n).shallowLookups = []
+  theorem main_subcircuits_nil (inp : Var Input Fp) (n : ℕ) :
+      ((main inp).operations n).subcircuits = []
+  ```
+
+**Consequence.** `StandardECDSA/Main.lean`'s theorem is renamed
+`main_accepts_iff_standard_of_nil` (it keeps `hl`/`hs` as hypotheses, since
+`Main.lean` cannot import a file that imports it), and the hypothesis-free
+`main_accepts_iff_standard` now lives in `NoLookupSub.lean`:
+
+```lean
+theorem main_accepts_iff_standard (inp : Var Input Fp) (penv : ProverEnvironment Fp)
+    (n : Nat) (hw : penv.UsesLocalWitnessesCompleteness n ((main inp).operations n))
+    (h : CompleteWitness inp penv n) :
+    ConstraintsHold.Soundness penv ((main inp).operations n) ↔
+      standardVerify (Expression.eval penv inp.pkX) (Expression.eval penv inp.pkY)
+        (Expression.eval penv inp.digestLo) (Expression.eval penv inp.digestHi)
+        (Expression.eval penv inp.r) (Expression.eval penv inp.s)
+```
+
+No hypothesis about the shape of `main`'s operation list remains.
+
+**Observed results.** `lake build StandardECDSA.NoLookupSub` green (9 021 jobs);
+`lake build Tests.StandardECDSA.Axioms` green (9 023 jobs); axiom audit 33 roots
+pass; contract verifier passes (including the two new `example`s for
+`main_shallowLookups_nil` / `main_subcircuits_nil`); matrix check passes;
+`lake exe standardEcdsaTests` 46/46.
 
 ## 6. Release summary
 
@@ -242,7 +268,7 @@ mechanical but not small, and it was not completed in this round.
 * **Proof roots:** `main_soundness`, `main_complete_with_seed`,
   `main_completeness`, `main_accepts_iff_standard`, `main_cost` — all referring
   to the actual circuit `main`, all axiom-clean.
-* **Audit roots:** 30 theorems, audited fail-closed by
+* **Audit roots:** 33 theorems, audited fail-closed by
   `scripts/check_standard_ecdsa_axioms.py`.
 * **Explicit build targets** (the release check is *not* the default
   `lake build` alone):
@@ -262,4 +288,4 @@ mechanical but not small, and it was not completed in this round.
   binding are proved for the actual circuit; the executable suite validates the
   circuit against an independent standard verifier on 46 fixtures; the matrix
   export is validated independently but is documented as tested tooling.
-* **Remaining assumptions:** G1, G2, G3 above.
+* **Remaining assumptions:** G1 and G2 above (G3 is closed).

@@ -30,6 +30,7 @@ EXPECTED_SCORE = EXPECTED_ALLOCATIONS + EXPECTED_ROWS
 POSITIVE = r'''
 import StandardECDSA.Main
 import StandardECDSA.Cost
+import StandardECDSA.NoLookupSub
 
 open StandardECDSA
 open StandardECDSA.Gadgets
@@ -57,13 +58,21 @@ example : ∀ (inp : Var Input Fp) (n : Nat),
 example : ∀ (inp : Var Input Fp) (penv : ProverEnvironment Fp) (n : Nat),
     penv.UsesLocalWitnessesCompleteness n ((main inp).operations n) →
       CompleteWitness inp penv n →
-        ((main inp).operations n).shallowLookups = [] →
-          ((main inp).operations n).subcircuits = [] →
-            (ConstraintsHold.Soundness penv ((main inp).operations n) ↔
-              standardVerify (Expression.eval penv inp.pkX) (Expression.eval penv inp.pkY)
-                (Expression.eval penv inp.digestLo) (Expression.eval penv inp.digestHi)
-                (Expression.eval penv inp.r) (Expression.eval penv inp.s)) :=
+        (ConstraintsHold.Soundness penv ((main inp).operations n) ↔
+          standardVerify (Expression.eval penv inp.pkX) (Expression.eval penv inp.pkY)
+            (Expression.eval penv inp.digestLo) (Expression.eval penv inp.digestHi)
+            (Expression.eval penv inp.r) (Expression.eval penv inp.s)) :=
   main_accepts_iff_standard
+
+/-! 1b. The two structural side conditions are *proved*, not assumed (gap G3). -/
+
+example : ∀ (inp : Var Input Fp) (n : Nat),
+    ((main inp).operations n).shallowLookups = [] :=
+  main_shallowLookups_nil
+
+example : ∀ (inp : Var Input Fp) (n : Nat),
+    ((main inp).operations n).subcircuits = [] :=
+  main_subcircuits_nil
 
 /-! 2. Input count. -/
 

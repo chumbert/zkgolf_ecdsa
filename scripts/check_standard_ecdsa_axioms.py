@@ -30,6 +30,9 @@ REQUIRED = {
     'StandardECDSA.main_complete_with_seed',
     'StandardECDSA.main_completeness',
     'StandardECDSA.main_accepts_iff_standard',
+    'StandardECDSA.main_accepts_iff_standard_of_nil',
+    'StandardECDSA.main_shallowLookups_nil',
+    'StandardECDSA.main_subcircuits_nil',
     'StandardECDSA.main_cost',
     # specification
     'StandardECDSA.Math.standard_iff_signaturePoint',

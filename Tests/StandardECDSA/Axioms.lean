@@ -25,6 +25,7 @@ Task T20.
 
 import StandardECDSA.Main
 import StandardECDSA.Cost
+import StandardECDSA.NoLookupSub
 import StandardECDSA.Math.SignatureEquation
 import StandardECDSA.Math.OffsetCandidates
 import StandardECDSA.Witness.Correctness
@@ -41,6 +42,9 @@ import StandardECDSA.Phases.Cost
 #print axioms StandardECDSA.main_complete_with_seed
 #print axioms StandardECDSA.main_completeness
 #print axioms StandardECDSA.main_accepts_iff_standard
+#print axioms StandardECDSA.main_accepts_iff_standard_of_nil
+#print axioms StandardECDSA.main_shallowLookups_nil
+#print axioms StandardECDSA.main_subcircuits_nil
 #print axioms StandardECDSA.main_cost
 
 /-! ## Specification -/
