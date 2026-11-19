@@ -139,3 +139,7 @@ import StandardECDSA.Phases.HonestDenominators
 #print axioms StandardECDSA.Phases.famOf_target_fbWin_false
 #print axioms StandardECDSA.Phases.famOf_target_fbWin_true
 #print axioms StandardECDSA.Phases.fbWin_dx
+#print axioms StandardECDSA.Phases.famOf_target_shift_false
+#print axioms StandardECDSA.Phases.famOf_target_shift_true
+#print axioms StandardECDSA.Phases.fbShift_dx
+#print axioms StandardECDSA.Phases.hshy_dx

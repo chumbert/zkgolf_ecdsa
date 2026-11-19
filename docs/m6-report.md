@@ -458,9 +458,15 @@ Three rewrite-order facts were needed and are now recorded in the file:
 * `digitOf env eb k` must be rewritten with `digitOf_eq env eb k hk` before the
   `abel` step.
 
-**What remains (G1-c).** `fbShift_dx` (the two `Bool` slots), `hshy` (the `Unit`
-slot, `[2]H ≠ 0` from `card_odd`), the five shifted-table denominators
-`hs1 … hs5`, and the 256-step ladder denominators `hj1`, `hj2`, `hjf1 … hjf4`.
+**G1-c, shift and `y` denominators — DONE (round 26, second commit).**
+`fbShift_dx : shiftX - H.X ≠ 0` (slots `.inl false` / `.inl true`, `a = 0`,
+`b = 1`, `B₀ = S`, `B₁ = 0`) and `hshy_dx : H.Y ≠ 0` (the `Unit` slot,
+coefficient `2`, target `0`).  `hshy_dx` does **not** need the doubling formula:
+`2 • Hpt ≠ 0` plus `H.Y = 0 → Hpt = -Hpt` (via `Affine.Point.neg_some` and
+`negY_eq_neg`) gives `2 • Hpt = Hpt + Hpt = Hpt + (-Hpt) = 0`, a contradiction.
+
+**What remains (G1-c).** The five shifted-table denominators `hs1 … hs5` and the
+256-step ladder denominators `hj1`, `hj2`, `hjf1 … hjf4`.
 
 ### G2 — T16 concrete witness environment
 

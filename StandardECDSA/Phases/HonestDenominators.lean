@@ -158,4 +158,86 @@ theorem fbWin_dx (env : Environment Fp) (eb rb sb : Vector E 256)
   intro hzero
   exact hne (sub_eq_zero.mp hzero)
 
+/-- The affine target of the `Bool` slot `false` is the shift point `S`. -/
+theorem famOf_target_shift_false (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) :
+    (famOf env eb rb sb Qpt Rpt).toAffine.target (slotEquiv (Sum.inl false)) = shiftPt := by
+  show toAff ((famOf env eb rb sb Qpt Rpt).target (slotEquiv (Sum.inl false))) = _
+  rw [famOf_target_apply]
+  simp only [targetOf, toAff_toProjective]
+
+/-- The affine target of the `Bool` slot `true` is `-S`. -/
+theorem famOf_target_shift_true (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) :
+    (famOf env eb rb sb Qpt Rpt).toAffine.target (slotEquiv (Sum.inl true)) = -shiftPt := by
+  show toAff ((famOf env eb rb sb Qpt Rpt).target (slotEquiv (Sum.inl true))) = _
+  rw [famOf_target_apply]
+  simp only [targetOf, toAff_toProjective]
+
+/-- **The shift denominator does not vanish**: `x(S) ≠ x(H)`. -/
+theorem fbShift_dx (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) (H : AffinePoint K) (hH : H.IsOnCurve params)
+    (hgood : GoodOffset H hH (famOf env eb rb sb Qpt Rpt)) :
+    shiftX - H.X ≠ 0 := by
+  classical
+  have havoid := famOf_avoids_affine env eb rb sb Qpt Rpt H hH hgood
+  have hHpt : goodOffsetAffinePt H hH = Affine.Point.some H.X H.Y (nsOfOnCurve H hH) :=
+    goodOffsetAffinePt_eq_some H hH hgood
+  have hS : NS shiftX shiftY :=
+    ns_congr shiftX_eq shiftY_eq
+      (affine_ns (mulG shiftNat) (mulG_on_curve shiftNat)
+        (mulG_Z_ne_zero_gen shiftNat shiftNat_mod_ne_zero))
+  have hshiftPt : Affine.Point.some shiftX shiftY hS = shiftPt :=
+    (some_congr shiftX_eq shiftY_eq hS
+      (affine_ns (mulG shiftNat) (mulG_on_curve shiftNat)
+        (mulG_Z_ne_zero_gen shiftNat shiftNat_mod_ne_zero))).trans fixedShift_some
+  have hcF : (famOf env eb rb sb Qpt Rpt).toAffine.coeff (slotEquiv (Sum.inl false)) = 1 := by
+    simp only [famOf_coeff_apply]
+    rfl
+  have hcT : (famOf env eb rb sb Qpt Rpt).toAffine.coeff (slotEquiv (Sum.inl true)) = 1 := by
+    simp only [famOf_coeff_apply]
+    rfl
+  have hF := nsmul_ne_of_slot havoid (slotEquiv (Sum.inl false)) hcF
+    (T := shiftPt) (famOf_target_shift_false env eb rb sb Qpt Rpt)
+  have hT' := nsmul_ne_of_slot havoid (slotEquiv (Sum.inl true)) hcT
+    (T := -shiftPt) (famOf_target_shift_true env eb rb sb Qpt Rpt)
+  have h2 : (1 - 0) • goodOffsetAffinePt H hH ≠ shiftPt - 0 := by
+    simpa using hF
+  have h3 : (0 + 1) • goodOffsetAffinePt H hH ≠ -(shiftPt + 0) := by
+    simpa using hT'
+  have hne := X_ne_of_avoids_sharp hS (nsOfOnCurve H hH) (goodOffsetAffinePt H hH) 0 1
+    shiftPt 0
+    (by rw [hshiftPt]; simp)
+    (by rw [hHpt]; simp)
+    (by omega) (fun _ => h2) h3
+  exact sub_ne_zero.mpr hne
+
+/-- **The `y`-denominator does not vanish**: `y(H) ≠ 0`. -/
+theorem hshy_dx (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) (H : AffinePoint K) (hH : H.IsOnCurve params)
+    (hgood : GoodOffset H hH (famOf env eb rb sb Qpt Rpt)) :
+    H.Y ≠ 0 := by
+  classical
+  have havoid := famOf_avoids_affine env eb rb sb Qpt Rpt H hH hgood
+  have hHpt : goodOffsetAffinePt H hH = Affine.Point.some H.X H.Y (nsOfOnCurve H hH) :=
+    goodOffsetAffinePt_eq_some H hH hgood
+  have hc : (famOf env eb rb sb Qpt Rpt).toAffine.coeff
+      (slotEquiv (Sum.inr (Sum.inr (Sum.inl ())))) = 2 := by
+    simp only [famOf_coeff_apply]
+    rfl
+  have hT : (famOf env eb rb sb Qpt Rpt).toAffine.target
+      (slotEquiv (Sum.inr (Sum.inr (Sum.inl ())))) = 0 := by
+    show toAff ((famOf env eb rb sb Qpt Rpt).target
+      (slotEquiv (Sum.inr (Sum.inr (Sum.inl ()))))) = _
+    rw [famOf_target_apply]
+    simp only [targetOf, toAff, WeierstrassCurve.Projective.Point.toAffineLift_zero]
+  have h2 := nsmul_ne_of_slot havoid (slotEquiv (Sum.inr (Sum.inr (Sum.inl ())))) hc
+    (T := (0 : Affine.Point Wp)) hT
+  intro hy
+  apply h2
+  rw [two_nsmul, hHpt]
+  exact add_eq_zero_iff_eq_neg.mpr (by
+    rw [Affine.Point.neg_some, Affine.Point.some.injEq]
+    exact ⟨rfl, by rw [negY_eq_neg, hy, neg_zero]⟩)
+
 end StandardECDSA.Phases

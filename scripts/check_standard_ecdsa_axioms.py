@@ -107,6 +107,10 @@ REQUIRED = {
     'StandardECDSA.Phases.famOf_target_fbWin_false',
     'StandardECDSA.Phases.famOf_target_fbWin_true',
     'StandardECDSA.Phases.fbWin_dx',
+    'StandardECDSA.Phases.famOf_target_shift_false',
+    'StandardECDSA.Phases.famOf_target_shift_true',
+    'StandardECDSA.Phases.fbShift_dx',
+    'StandardECDSA.Phases.hshy_dx',
 }
 
 
