@@ -209,6 +209,9 @@ REQUIRED = {
     'StandardECDSA.Phases.fixedBase_fbInv_of_ulwc',
     'StandardECDSA.Phases.hfb_of_ulwc',
     'StandardECDSA.Phases.hfb0_of_ulwc',
+    'StandardECDSA.Phases.elmTo_soundness_of_ulwc',
+    'StandardECDSA.Phases.jointLadderFinal_soundness_of_ulwc',
+    'StandardECDSA.Phases.jointLadder_soundness_of_ulwc',
 }
 
 
