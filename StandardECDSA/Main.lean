@@ -79,6 +79,7 @@ namespace StandardECDSA
 
 open StandardECDSA.Gadgets
 open StandardECDSA.Phases
+open StandardECDSA.Math
 
 /-- The hint provider key for the standard circuit's seed. -/
 def hintKey : String := "standard"
@@ -650,5 +651,271 @@ theorem soundness_append9 {env : Environment Fp} {a b c d e f g h i : Operations
       ConstraintsHold.Soundness env g ∧ ConstraintsHold.Soundness env h ∧
       ConstraintsHold.Soundness env i := by
   simpa only [ConstraintsHold.Soundness, Operations.forAllNoOffset_append, and_assoc] using hc
+
+@[simp] theorem eval_add' (env : Environment Fp) (a b : E) :
+    Expression.eval env (a + b) = Expression.eval env a + Expression.eval env b := rfl
+
+@[simp] theorem eval_sc' (env : Environment Fp) (c : Fp) (e : E) :
+    Expression.eval env (sc c e) = c * Expression.eval env e := rfl
+
+theorem eval_linComb (env : Environment Fp) (v : Vector E 256) (lo len : Nat) :
+    Expression.eval env (linComb v lo len)
+      = leSum (fun i : Fin len => Expression.eval env (v.getD (lo + i.val) (cst 0))) := by
+  induction len with
+  | zero => simp only [linComb, List.range_zero, List.foldl_nil, eval_cst, leSum,
+      Fin.sum_univ_zero]
+  | succ k ih =>
+    have hr : List.range (k + 1) = List.range k ++ [k] := List.range_succ
+    rw [linComb, hr, List.foldl_append]
+    simp only [List.foldl_cons, List.foldl_nil]
+    rw [show (List.range k).foldl
+        (fun acc j => acc + sc ((2 : Fp) ^ j) (v.getD (lo + j) (cst 0))) (cst 0)
+        = linComb v lo k from rfl]
+    simp only [eval_add', eval_sc']
+    rw [ih]
+    simp only [leSum, Fin.sum_univ_castSucc, Fin.val_castSucc, Fin.val_last]
+
+theorem prefVal_eq_sum (x : Nat → Nat) : ∀ k : Nat,
+    prefVal x k = ∑ j ∈ Finset.range k, 2 ^ (k - 1 - j) * x j
+  | 0 => by simp [prefVal]
+  | k + 1 => by
+    rw [prefVal, prefVal_eq_sum x k, Finset.sum_range_succ]
+    rw [Finset.mul_sum]
+    have hlast : 2 ^ (k + 1 - 1 - k) * x k = x k := by
+      rw [show k + 1 - 1 - k = 0 from by omega, pow_zero, one_mul]
+    rw [hlast]
+    congr 1
+    refine Finset.sum_congr rfl ?_
+    intro j hj
+    rw [Finset.mem_range] at hj
+    rw [show k + 1 - 1 - j = (k - 1 - j) + 1 from by omega, pow_succ]
+    ring
+
+theorem prefVal_rev (f : Fin 256 → Nat) :
+    prefVal (fun j => f ⟨255 - j, by omega⟩) 256 = leNat f := by
+  rw [prefVal_eq_sum, leNat_eq_sum_range]
+  have h : ∀ j ∈ Finset.range 256,
+      2 ^ (256 - 1 - j) * f ⟨255 - j, by omega⟩
+        = (fun i => 2 ^ i * f ⟨i % 256, Nat.mod_lt _ (by norm_num)⟩) (256 - 1 - j) := by
+    intro j hj
+    rw [Finset.mem_range] at hj
+    simp only [Nat.mod_eq_of_lt (by omega : 256 - 1 - j < 256)]
+  rw [Finset.sum_congr rfl h]
+  exact Finset.sum_range_reflect
+    (fun i => 2 ^ i * f ⟨i % 256, Nat.mod_lt _ (by norm_num)⟩) 256
+
+theorem leNat_split {m n : Nat} (f : Fin (m + n) → Nat) :
+    leNat f = leNat (fun i : Fin m => f ⟨i.val, by omega⟩)
+      + 2 ^ m * leNat (fun i : Fin n => f ⟨m + i.val, by omega⟩) := by
+  unfold leNat
+  rw [Fin.sum_univ_add, Finset.mul_sum]
+  congr 1
+  refine Finset.sum_congr rfl fun i _ => ?_
+  show 2 ^ (m + (i : Nat)) * f ⟨m + (i : Nat), _⟩
+    = 2 ^ m * (2 ^ (i : Nat) * f ⟨m + (i : Nat), _⟩)
+  rw [pow_add]
+  ring
+
+theorem two_pow_128_le_p : 2 ^ 128 ≤ p := by decide
+
+theorem leNat_congr {k : Nat} {f g : Fin k → Nat} (h : ∀ i, f i = g i) :
+    leNat f = leNat g := by
+  unfold leNat
+  exact Finset.sum_congr rfl fun i _ => by rw [h i]
+
+/-- The 256 digest bits recompose to the two-limb digest. -/
+theorem leNat_eb_eq_digest (env : Environment Fp) (inp : Var Input Fp) (b : Bits)
+    (hlo : Expression.eval env (linComb b.eb 0 128) = Expression.eval env inp.digestLo)
+    (hhi : Expression.eval env (linComb b.eb 128 128) = Expression.eval env inp.digestHi)
+    (hb : ∀ k : Fin 256, Expression.eval env (b.eb.get k) = 0 ∨
+      Expression.eval env (b.eb.get k) = 1) :
+    leNat (fun i : Fin 256 => (Expression.eval env (b.eb.get i)).val)
+      = (Digest.mk (Expression.eval env inp.digestLo)
+          (Expression.eval env inp.digestHi)).toNat := by
+  have hget : ∀ (i : Nat) (hi : i < 256), b.eb.getD i (cst 0) = b.eb.get ⟨i, hi⟩ :=
+    fun i hi => getD_eq_get hi
+  have hlt : ∀ (v : Fin 128 → Fp),
+      (∀ i, v i = 0 ∨ v i = 1) → leNat (fun i => (v i).val) < p := by
+    intro v hv
+    have : Fact (1 < p) := ⟨by decide⟩
+    refine lt_of_lt_of_le (leNat_lt _ (fun i => ?_)) two_pow_128_le_p
+    rcases hv i with h | h
+    · rw [h]; exact Nat.zero_le 1
+    · rw [h, ZMod.val_one p]
+  have hlow : leNat (fun i : Fin 128 => (Expression.eval env (b.eb.get ⟨i.val, by omega⟩)).val)
+      = (Expression.eval env inp.digestLo).val := by
+    have hv : ∀ i : Fin 128, Expression.eval env (b.eb.getD (0 + i.val) (cst 0)) = 0 ∨
+        Expression.eval env (b.eb.getD (0 + i.val) (cst 0)) = 1 := by
+      intro i
+      rw [Nat.zero_add, hget i.val (by omega)]
+      exact hb _
+    have h1 : leSum (fun i : Fin 128 => Expression.eval env (b.eb.getD (0 + i.val) (cst 0)))
+        = Expression.eval env inp.digestLo := by
+      rw [← eval_linComb]; exact hlo
+    have h2 : (leSum (fun i : Fin 128 =>
+        Expression.eval env (b.eb.getD (0 + i.val) (cst 0)))).val
+        = leNat (fun i : Fin 128 =>
+            (Expression.eval env (b.eb.getD (0 + i.val) (cst 0))).val) :=
+      val_leSum' _ hv (hlt _ hv)
+    have h3 : leNat (fun i : Fin 128 => (Expression.eval env (b.eb.get ⟨i.val, by omega⟩)).val)
+        = leNat (fun i : Fin 128 =>
+            (Expression.eval env (b.eb.getD (0 + i.val) (cst 0))).val) :=
+      leNat_congr fun i => by rw [Nat.zero_add, hget i.val (by omega)]
+    rw [h3, ← h2, h1]
+  have hhigh : leNat (fun i : Fin 128 => (Expression.eval env (b.eb.get ⟨128 + i.val, by omega⟩)).val)
+      = (Expression.eval env inp.digestHi).val := by
+    have hv : ∀ i : Fin 128, Expression.eval env (b.eb.getD (128 + i.val) (cst 0)) = 0 ∨
+        Expression.eval env (b.eb.getD (128 + i.val) (cst 0)) = 1 := by
+      intro i
+      rw [hget (128 + i.val) (by omega)]
+      exact hb _
+    have h1 : leSum (fun i : Fin 128 => Expression.eval env (b.eb.getD (128 + i.val) (cst 0)))
+        = Expression.eval env inp.digestHi := by
+      rw [← eval_linComb]; exact hhi
+    have h2 : (leSum (fun i : Fin 128 =>
+        Expression.eval env (b.eb.getD (128 + i.val) (cst 0)))).val
+        = leNat (fun i : Fin 128 =>
+            (Expression.eval env (b.eb.getD (128 + i.val) (cst 0))).val) :=
+      val_leSum' _ hv (hlt _ hv)
+    have h3 : leNat (fun i : Fin 128 => (Expression.eval env (b.eb.get ⟨128 + i.val, by omega⟩)).val)
+        = leNat (fun i : Fin 128 =>
+            (Expression.eval env (b.eb.getD (128 + i.val) (cst 0))).val) :=
+      leNat_congr fun i => by rw [hget (128 + i.val) (by omega)]
+    rw [h3, ← h2, h1]
+  rw [leNat_split (m := 128) (n := 128), hlow, hhigh]
+  show _ = (Expression.eval env inp.digestLo).val
+      + 2 ^ 128 * (Expression.eval env inp.digestHi).val
+  rfl
+
+/-- The canonical representative of `n - x` for `x.val < n`. -/
+theorem val_nFp_sub (x : Fp) (hx : x.val < Challenge.Specs.ECDSAP256.n) :
+    ((Challenge.Specs.ECDSAP256.n : Fp) - x).val
+      = Challenge.Specs.ECDSAP256.n - x.val := by
+  have : NeZero p := ⟨by decide⟩
+  have hn : Challenge.Specs.ECDSAP256.n < p := n_lt_p
+  rw [ZMod.val_sub (a := (Challenge.Specs.ECDSAP256.n : Fp)) (b := x) (by
+    rw [ZMod.val_natCast, Nat.mod_eq_of_lt hn]
+    exact Nat.le_of_lt hx)]
+  rw [ZMod.val_natCast, Nat.mod_eq_of_lt hn]
+
+/-- The 256 `r` bits recompose to the canonical representative of `r`. -/
+theorem leNat_rb_eq (env : Environment Fp) (inp : Var Input Fp) (b : Bits)
+    (h : Expression.eval env (linComb b.rb 0 256) = Expression.eval env inp.r)
+    (hb : ∀ k : Fin 256, Expression.eval env (b.rb.get k) = 0 ∨
+      Expression.eval env (b.rb.get k) = 1)
+    (hbound : leNat (fun i : Fin 256 => (Expression.eval env (b.rb.get i)).val) < p) :
+    leNat (fun i : Fin 256 => (Expression.eval env (b.rb.get i)).val)
+      = (Expression.eval env inp.r).val := by
+  have hget : ∀ (i : Nat) (hi : i < 256), b.rb.getD i (cst 0) = b.rb.get ⟨i, hi⟩ :=
+    fun i hi => getD_eq_get hi
+  have hv : ∀ i : Fin 256, Expression.eval env (b.rb.getD (0 + i.val) (cst 0)) = 0 ∨
+      Expression.eval env (b.rb.getD (0 + i.val) (cst 0)) = 1 := by
+    intro i
+    rw [Nat.zero_add, hget i.val (by omega)]
+    exact hb _
+  have h1 : leSum (fun i : Fin 256 => Expression.eval env (b.rb.getD (0 + i.val) (cst 0)))
+      = Expression.eval env inp.r := by
+    rw [← eval_linComb]; exact h
+  have h2 : (leSum (fun i : Fin 256 =>
+      Expression.eval env (b.rb.getD (0 + i.val) (cst 0)))).val
+      = leNat (fun i : Fin 256 =>
+          (Expression.eval env (b.rb.getD (0 + i.val) (cst 0))).val) :=
+    val_leSum' _ hv (by
+      rw [← leNat_congr (fun i => by rw [Nat.zero_add, hget i.val (by omega)])]
+      exact hbound)
+  have h3 : leNat (fun i : Fin 256 => (Expression.eval env (b.rb.get ⟨i.val, by omega⟩)).val)
+      = leNat (fun i : Fin 256 =>
+          (Expression.eval env (b.rb.getD (0 + i.val) (cst 0))).val) :=
+    leNat_congr fun i => by rw [Nat.zero_add, hget i.val (by omega)]
+  rw [h3, ← h2, h1]
+
+/-- The 256 `t = n - s` bits recompose to `n - s.val`. -/
+theorem leNat_sb_eq (env : Environment Fp) (inp : Var Input Fp) (b : Bits)
+    (h : Expression.eval env (linComb b.sb 0 256)
+      = Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s))
+    (hb : ∀ k : Fin 256, Expression.eval env (b.sb.get k) = 0 ∨
+      Expression.eval env (b.sb.get k) = 1)
+    (hbound : leNat (fun i : Fin 256 => (Expression.eval env (b.sb.get i)).val) < p)
+    (hsn : (Expression.eval env inp.s).val < Challenge.Specs.ECDSAP256.n) :
+    leNat (fun i : Fin 256 => (Expression.eval env (b.sb.get i)).val)
+      = Challenge.Specs.ECDSAP256.n - (Expression.eval env inp.s).val := by
+  have hget : ∀ (i : Nat) (hi : i < 256), b.sb.getD i (cst 0) = b.sb.get ⟨i, hi⟩ :=
+    fun i hi => getD_eq_get hi
+  have hv : ∀ i : Fin 256, Expression.eval env (b.sb.getD (0 + i.val) (cst 0)) = 0 ∨
+      Expression.eval env (b.sb.getD (0 + i.val) (cst 0)) = 1 := by
+    intro i
+    rw [Nat.zero_add, hget i.val (by omega)]
+    exact hb _
+  have h1 : leSum (fun i : Fin 256 => Expression.eval env (b.sb.getD (0 + i.val) (cst 0)))
+      = Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s) := by
+    rw [← eval_linComb]; exact h
+  have h2 : (leSum (fun i : Fin 256 =>
+      Expression.eval env (b.sb.getD (0 + i.val) (cst 0)))).val
+      = leNat (fun i : Fin 256 =>
+          (Expression.eval env (b.sb.getD (0 + i.val) (cst 0))).val) :=
+    val_leSum' _ hv (by
+      rw [← leNat_congr (fun i => by rw [Nat.zero_add, hget i.val (by omega)])]
+      exact hbound)
+  have h3 : leNat (fun i : Fin 256 => (Expression.eval env (b.sb.get ⟨i.val, by omega⟩)).val)
+      = leNat (fun i : Fin 256 =>
+          (Expression.eval env (b.sb.getD (0 + i.val) (cst 0))).val) :=
+    leNat_congr fun i => by rw [Nat.zero_add, hget i.val (by omega)]
+  rw [h3, ← h2, h1, eval_sub, eval_cst, val_nFp_sub _ hsn]
+
+/-- `leNat` of the field values of a Boolean hint vector is `leNat` of its
+`aNatOf` reading, which is what the comparator bounds. -/
+theorem leNat_val_eq_aNatOf (env : Environment Fp) (v : Vector E 256)
+    (hv : ∀ k : Fin 256, Expression.eval env (v.get k) = 0 ∨
+      Expression.eval env (v.get k) = 1) :
+    leNat (fun i : Fin 256 => (Expression.eval env (v.get i)).val)
+      = leNat (fun i : Fin 256 =>
+          aNatOf (fun k => Expression.eval env (v.getD k (cst 0))) i) := by
+  refine leNat_congr fun i => ?_
+  have hgd : Expression.eval env (v.getD i.val (cst 0)) = Expression.eval env (v.get i) := by
+    rw [getD_eq_get i.isLt]
+  rcases hv i with h | h
+  · rw [h, ZMod.val_zero]
+    simp only [aNatOf, hgd, h]
+    rfl
+  · rw [h, ZMod.val_one p]
+    simp only [aNatOf, hgd, h]
+    rfl
+
+
+
+/-! ## Canonical representatives and the affine/projective bridge -/
+
+/-- The canonical representative of `n - x` for `x.val ≤ n`. -/
+theorem val_nFp_sub_le (x : Fp) (hx : x.val ≤ Challenge.Specs.ECDSAP256.n) :
+    ((Challenge.Specs.ECDSAP256.n : Fp) - x).val
+      = Challenge.Specs.ECDSAP256.n - x.val := by
+  have : NeZero p := ⟨by decide⟩
+  have hn : Challenge.Specs.ECDSAP256.n < p := n_lt_p
+  rw [ZMod.val_sub (a := (Challenge.Specs.ECDSAP256.n : Fp)) (b := x) (by
+    rw [ZMod.val_natCast, Nat.mod_eq_of_lt hn]; exact hx)]
+  rw [ZMod.val_natCast, Nat.mod_eq_of_lt hn]
+
+/-- Nonsingularity of an affine point implies the Mathlib `IsOnCurve` predicate
+(which is only the curve equation). -/
+theorem ns_isOnCurve (x y : Fp) (h : NS x y) :
+    (⟨x, y⟩ : AffinePoint K).IsOnCurve params := by
+  unfold NS AffinePoint.IsOnCurve at *
+  obtain ⟨h1, -⟩ := h
+  rw [WeierstrassCurve.Affine.equation_iff'] at h1
+  simp only [CurveParameters.toMathlib] at h1 ⊢
+  linear_combination h1
+
+/-- `toAffineLift` of the Mathlib point attached to an affine point is that
+affine point. -/
+theorem toAffineLift_Qpt (Q : AffinePoint K) (hQ : Q.IsOnCurve params) (hns : NS Q.X Q.Y) :
+    WeierstrassCurve.Projective.Point.toAffineLift (Qpt Q hQ)
+      = WeierstrassCurve.Affine.Point.some Q.X Q.Y hns := by
+  simp only [Qpt, ProjectivePoint.toMathlibPoint]
+  rw [WeierstrassCurve.Projective.Point.toAffineLift_eq]
+  show WeierstrassCurve.Projective.Point.toAffine (params.toMathlib.toProjective) ![Q.X, Q.Y, 1]
+    = WeierstrassCurve.Affine.Point.some Q.X Q.Y hns
+  have hns' : WeierstrassCurve.Projective.Nonsingular (params.toMathlib.toProjective) ![Q.X, Q.Y, 1] :=
+    isOnCurve_implies_nonsingular Q.toProjective params (toProjective_on_curve hQ)
+  rw [WeierstrassCurve.Projective.Point.toAffine_some (W := params.toMathlib.toProjective) hns']
 
 end StandardECDSA

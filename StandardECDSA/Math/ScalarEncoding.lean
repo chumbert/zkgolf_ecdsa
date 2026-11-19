@@ -122,6 +122,22 @@ theorem val_leSum {k : Nat} (v : Fin k → K) (hv : ∀ i, v i = 0 ∨ v i = 1)
     · rw [h]; simp
   rw [h1, leSum_eq_leNat, ZMod.val_cast_of_lt (lt_of_lt_of_le hlt hk)]
 
+/-- Variant of `val_leSum` whose side condition is the *actual* bound on the
+little-endian sum rather than `2^k ≤ p`.  Needed for the 256-bit scalar
+bindings, where `2^256 > p` but the comparator rows keep the sum below `n`. -/
+theorem val_leSum' {k : Nat} (v : Fin k → K) (hv : ∀ i, v i = 0 ∨ v i = 1)
+    (hlt : leNat (fun i => (v i).val) < p) :
+    (leSum v).val = leNat (fun i => (v i).val) := by
+  haveI : Fact (1 < p) := ⟨by decide⟩
+  have h1 : leSum v = leSum (fun i => ((v i).val : K)) := by
+    unfold leSum
+    refine Finset.sum_congr rfl fun i _ => ?_
+    show (2 : K) ^ (i : Nat) * v i = (2 : K) ^ (i : Nat) * ((v i).val : K)
+    rcases hv i with h | h
+    · rw [h]; simp
+    · rw [h]; simp
+  rw [h1, leSum_eq_leNat, ZMod.val_cast_of_lt hlt]
+
 /-! ## Canonical field values -/
 
 /-- The canonical representative of a field element is below the characteristic. -/

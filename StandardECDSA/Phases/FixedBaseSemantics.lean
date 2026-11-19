@@ -545,4 +545,46 @@ theorem fixedBase_spec (env : Environment Fp) (h : Pt) (eb : Vector E 256) (n : 
   simp only [shiftPt]
   abel
 
+/-! ## Discharging the distinct-`x` conditions from the constraints -/
+
+/-- **The fixed-base phase's distinct-`x` conditions follow from its rows.**
+
+The initial shift addition and each of the 128 windows contain an `affAdd`,
+whose inverse row forces the two `x`-coordinates apart (`affAdd_dx`).  This
+lemma is what makes `fixedBase_spec` usable unconditionally: a parent that only
+knows `ConstraintsHold.Soundness` of the phase's operations can discharge
+`hdx0` and `hdx` here. -/
+theorem fixedBase_dx (env : Environment Fp) (h : Pt) (eb : Vector E 256) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((fixedBase h eb).operations n)) :
+    (Expression.eval env (cst shiftX) - Expression.eval env h.1 ≠ 0) ∧
+    (∀ (k : Nat) (hk : k < 128),
+      Expression.eval env ((fbMux eb fixedTables ⟨k, hk⟩).output (n + 4 + k * 5)).1
+        - Expression.eval env (Circuit.FoldlM.foldlAcc (n + 4) (Vector.finRange 128)
+            (fixedBaseBody eb fixedTables)
+            ((affAdd h (cst shiftX, cst (-shiftY))).output n) ⟨k, hk⟩).1 ≠ 0) := by
+  rw [fixedBase_ops] at hc
+  obtain ⟨hc1, hc2⟩ := soundness_append_foldlRange env
+    ((affAdd h (cst shiftX, cst (-shiftY))).operations n) hc
+  refine ⟨affAdd_dx env h (cst shiftX, cst (-shiftY)) n hc1, ?_⟩
+  intro k hk
+  have hcl : ∀ (i : Fin 128), (fixedBaseBody eb fixedTables default i).localLength = 5 := fun i =>
+    (fixedBaseBody_constantLength eb fixedTables).localLength_eq (default, i) 0
+  have hcj := hc2 ⟨k, hk⟩
+  rw [hcl ⟨k, hk⟩] at hcj
+  rw [foldlAcc_eq env eb fixedTables ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (n + 4) k hk] at hcj
+  rw [fixedBaseBody_eq] at hcj
+  obtain ⟨-, hcj⟩ := soundness_bind env (fbMux eb fixedTables ⟨k, hk⟩)
+    (fun t => affAdd (Fin.foldl k (fun acc (i : Fin k) =>
+      (fixedBaseBody eb fixedTables acc ⟨i.val, by omega⟩).output (n + 4 + i.val * 5))
+      ((affAdd h (cst shiftX, cst (-shiftY))).output n)) t) (n + 4 + k * 5) hcj
+  have hml : (fbMux eb fixedTables ⟨k, hk⟩).localLength (n + 4 + k * 5) = 1 := by
+    simp only [fbMux]
+    exact muxConst4W_localLength _ _ _ _
+  rw [hml] at hcj
+  rw [foldlAcc_eq env eb fixedTables ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (n + 4) k hk]
+  exact affAdd_dx env _ ((fbMux eb fixedTables ⟨k, hk⟩).output (n + 4 + k * 5))
+    (n + 4 + k * 5 + 1) hcj
+
 end StandardECDSA.Phases

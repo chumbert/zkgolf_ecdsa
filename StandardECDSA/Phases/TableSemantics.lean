@@ -51,6 +51,17 @@ theorem affAdd_sound (env : Environment Fp) (p q : Pt) (n : Nat)
   · exact (sub_eq_zero.mp r3).symm
   · exact (sub_eq_zero.mp r4).symm
 
+/-- The inverse row of `affAdd p q` forces the distinct-`x` condition.  This is
+the bridge from the phase's `ConstraintsHold.Soundness` hypothesis to the
+`hDx` argument of `affAdd_sound`, so that parents can discharge it from the
+constraints instead of assuming it. -/
+theorem affAdd_dx (env : Environment Fp) (p q : Pt) (n : Nat)
+    (h : ConstraintsHold.Soundness env ((affAdd p q).operations n)) :
+    Expression.eval env q.1 - Expression.eval env p.1 ≠ 0 := by
+  simp only [affAdd, nonzero, circuit_norm, pm] at h
+  obtain ⟨r1, -, -, -⟩ := h
+  exact nonzero_spec (inv := env.get n) r1
+
 /-- The four rows of `affDouble p` at offset `n` give `2 • p`, with the output at
 `n + 2`, `n + 3` when `p.x` is a wire. -/
 theorem affDouble_sound (env : Environment Fp) (p : Pt) (n : Nat) (hdeg : deg p.1 = 1)
@@ -378,5 +389,45 @@ theorem shiftedTables_spec (env : Environment Fp) (h q r : Pt) (n : ℕ) (hdeg :
     rw [e6']
   exact ⟨hP1, hP2, hP3, hP4, negPt_ns hP1, hP5, hP6, hP7,
     e1', e2', e3', e4', e5', e6', e7', e8'⟩
+
+/-- **The shifted-table phase's distinct-`x` conditions follow from its rows.**
+
+The eight affine additions each carry an inverse row, so the five distinct-`x`
+conditions of `shiftedTables_spec` are consequences of the phase's constraints.
+The two `-3H` additions reuse `hdx2`/`hdx3` because `negPt` only negates the
+`y`-coordinate. -/
+theorem shiftedTables_dx (env : Environment Fp) (h q r : Pt) (n : ℕ) (hdeg : deg h.1 = 1)
+    (hc : ConstraintsHold.Soundness env ((shiftedTables h q r).operations n)) :
+    (Expression.eval env h.1 - env.get (n + 2) ≠ 0) ∧
+    (Expression.eval env q.1 - env.get (n + 6) ≠ 0) ∧
+    (Expression.eval env r.1 - env.get (n + 6) ≠ 0) ∧
+    (Expression.eval env r.1 - env.get (n + 10) ≠ 0) ∧
+    (Expression.eval env r.1 - env.get (n + 22) ≠ 0) := by
+  simp only [shiftedTables, circuit_norm] at hc
+  simp only [affAdd_localLength', affDouble_localLength' hdeg] at hc
+  obtain ⟨a1, a2, a3, a4, a5, a6, b1, b2, b3, b4, b5, b6, c1, c2, c3⟩ := hc
+  have h2 : ConstraintsHold.Soundness env ((affAdd (affDouble h n).1 h).operations (n + 4)) := a2
+  have h3 : ConstraintsHold.Soundness env
+      ((affAdd (affAdd (affDouble h n).1 h (n + 4)).1 q).operations (n + 8)) := a3
+  have h4 : ConstraintsHold.Soundness env
+      ((affAdd (affAdd (affDouble h n).1 h (n + 4)).1 r).operations (n + 12)) := a4
+  have h5 : ConstraintsHold.Soundness env
+      ((affAdd (affAdd (affAdd (affDouble h n).1 h (n + 4)).1 q (n + 8)).1 r).operations
+        (n + 16)) := a5
+  have h8 : ConstraintsHold.Soundness env
+      ((affAdd (affAdd (negPt (affAdd (affDouble h n).1 h (n + 4)).1) q (n + 20)).1 r).operations
+        (n + 28)) := ⟨b2, b3, b4, b5, b6, c1, c2, c3⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · rw [← affDouble_out_fst hdeg env n]
+    exact affAdd_dx env (affDouble h n).1 h (n + 4) h2
+  · rw [← affAdd_out_fst (affDouble h n).1 h env (n + 4)]
+    exact affAdd_dx env (affAdd (affDouble h n).1 h (n + 4)).1 q (n + 8) h3
+  · rw [← affAdd_out_fst (affDouble h n).1 h env (n + 4)]
+    exact affAdd_dx env (affAdd (affDouble h n).1 h (n + 4)).1 r (n + 12) h4
+  · rw [← affAdd_out_fst (affAdd (affDouble h n).1 h (n + 4)).1 q env (n + 8)]
+    exact affAdd_dx env (affAdd (affAdd (affDouble h n).1 h (n + 4)).1 q (n + 8)).1 r (n + 16) h5
+  · rw [← affAdd_out_fst (negPt (affAdd (affDouble h n).1 h (n + 4)).1) q env (n + 20)]
+    exact affAdd_dx env (affAdd (negPt (affAdd (affDouble h n).1 h (n + 4)).1) q (n + 20)).1 r
+      (n + 28) h8
 
 end StandardECDSA.Phases
