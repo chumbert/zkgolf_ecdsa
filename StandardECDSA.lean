@@ -13,3 +13,4 @@ import StandardECDSA.Phases.HonestLadderJoint
 import StandardECDSA.Witness.HonestShiftedFields
 import StandardECDSA.Witness.HonestLadderFinal
 import StandardECDSA.Witness.HonestLadderDenominators
+import StandardECDSA.Witness.HonestDigest
