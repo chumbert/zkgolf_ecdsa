@@ -1848,4 +1848,201 @@ theorem fixedBase_complete (h : Pt) (eb : Vector E 256) (env : ProverEnvironment
   refine ⟨muxConst4W_complete _ _ _ env _ (hw.2 i).1, ?_⟩
   exact affAdd_complete _ _ env _ (hw.2 i).2 (hdx i)
 
+theorem selW_complete (b x0 x1 : E) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((selW b x0 x1).operations n)) :
+    ConstraintsHold.Completeness env ((selW b x0 x1).operations n) := by
+  simp only [selW, circuit_norm, pm] at hw ⊢
+  rw [hw]; ring
+
+theorem mux4W_complete (b0 b1 : E) (p0 p1 p2 p3 : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((mux4W b0 b1 p0 p1 p2 p3).operations n)) :
+    ConstraintsHold.Completeness env ((mux4W b0 b1 p0 p1 p2 p3).operations n) := by
+  simp only [mux4W, selW, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4, e5, e6⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [e1]; ring
+  · rw [e2]; ring
+  · rw [e3]; ring
+  · rw [e4]; ring
+  · rw [e5]; ring
+  · rw [e6]; ring
+
+
+
+theorem elmCore_complete (p q : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((elmCore p q).operations n))
+    (hDx : Expression.eval env.toEnvironment q.1 - Expression.eval env.toEnvironment p.1 ≠ 0)
+    (hDx2 : Expression.eval env.toEnvironment p.1 - env.get (n + 2) ≠ 0) :
+    ConstraintsHold.Completeness env ((elmCore p q).operations n) := by
+  simp only [elmCore, nonzero, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [e1]; simp only [eval_cst]; linear_combination mul_inv_cancel₀ hDx
+  · rw [e2, e1]; field_simp; ring
+  · rw [e3]; ring
+  · rw [e4]; field_simp; ring
+
+theorem elm_complete (p q : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((elm p q).operations n))
+    (hDx : Expression.eval env.toEnvironment q.1 - Expression.eval env.toEnvironment p.1 ≠ 0)
+    (hDx2 : Expression.eval env.toEnvironment p.1 - env.get (n + 2) ≠ 0) :
+    ConstraintsHold.Completeness env ((elm p q).operations n) := by
+  simp only [elm, elmCore, nonzero, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4, e5, e6⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [e1]; simp only [eval_cst]; linear_combination mul_inv_cancel₀ hDx
+  · rw [e2, e1]; field_simp; ring
+  · rw [e3]; ring
+  · rw [e4]; field_simp; ring
+  · rw [e5]; ring
+  · rw [e6]; ring
+
+theorem elmTo_complete (p q target : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((elmTo p q target).operations n))
+    (hDx : Expression.eval env.toEnvironment q.1 - Expression.eval env.toEnvironment p.1 ≠ 0)
+    (hDx2 : Expression.eval env.toEnvironment p.1 - env.get (n + 2) ≠ 0)
+    (h1 : env.get (n + 3) * env.get (n + 3) - Expression.eval env.toEnvironment p.1
+      - env.get (n + 2) - Expression.eval env.toEnvironment target.1 = 0)
+    (h2 : env.get (n + 3) * (Expression.eval env.toEnvironment p.1
+      - Expression.eval env.toEnvironment target.1) - Expression.eval env.toEnvironment p.2
+      - Expression.eval env.toEnvironment target.2 = 0) :
+    ConstraintsHold.Completeness env ((elmTo p q target).operations n) := by
+  simp only [elmTo, elmCore, nonzero, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [e1]; simp only [eval_cst]; linear_combination mul_inv_cancel₀ hDx
+  · rw [e2, e1]; field_simp; ring
+  · rw [e3]; ring
+  · rw [e4]; field_simp; ring
+  · exact h1
+  · exact h2
+
+
+
+theorem jointLadderBody_localLength (tables : Tables) (rb sb : Vector E 256) (acc : Pt)
+    (j : Fin 255) (n : Nat) :
+    (jointLadderBody tables rb sb acc j).localLength n = 12 :=
+  (jointLadderBody_constantLength tables rb sb).localLength_eq (acc, j) n
+
+theorem jointLadderBody_complete (tables : Tables) (rb sb : Vector E 256) (acc : Pt)
+    (env : ProverEnvironment Fp) (n : Nat) (j : Fin 255)
+    (hw : env.UsesLocalWitnessesCompleteness n ((jointLadderBody tables rb sb acc j).operations n))
+    (hDx : Expression.eval env.toEnvironment
+        ((mux4W (rb.get ⟨255 - j.val, by omega⟩) (sb.get ⟨255 - j.val, by omega⟩)
+          (tables.x0 j.val) (tables.x1 j.val) (tables.x2 j.val) (tables.x3 j.val)).output n).1
+      - Expression.eval env.toEnvironment acc.1 ≠ 0)
+    (hDx2 : Expression.eval env.toEnvironment acc.1 - env.get (n + 6 + 2) ≠ 0) :
+    ConstraintsHold.Completeness env ((jointLadderBody tables rb sb acc j).operations n) := by
+  rw [jointLadderBody_ops] at hw ⊢
+  rw [completeness_append]
+  rw [ulwc_append] at hw
+  simp only [mux4W_localLength] at hw
+  refine ⟨mux4W_complete _ _ _ _ _ _ env n hw.1, ?_⟩
+  exact elm_complete acc _ env (n + 6) hw.2 hDx hDx2
+
+theorem jointLadderFinal_complete (tables : Tables) (rb sb : Vector E 256) (acc target : Pt)
+    (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n
+      ((jointLadderFinal tables rb sb acc target).operations n))
+    (hDx : Expression.eval env.toEnvironment
+        ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+          (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output n).1
+      - Expression.eval env.toEnvironment acc.1 ≠ 0)
+    (hDx2 : Expression.eval env.toEnvironment acc.1 - env.get (n + 6 + 2) ≠ 0)
+    (h1 : env.get (n + 6 + 3) * env.get (n + 6 + 3) - Expression.eval env.toEnvironment acc.1
+      - env.get (n + 6 + 2) - Expression.eval env.toEnvironment target.1 = 0)
+    (h2 : env.get (n + 6 + 3) * (Expression.eval env.toEnvironment acc.1
+      - Expression.eval env.toEnvironment target.1) - Expression.eval env.toEnvironment acc.2
+      - Expression.eval env.toEnvironment target.2 = 0) :
+    ConstraintsHold.Completeness env ((jointLadderFinal tables rb sb acc target).operations n) := by
+  rw [jointLadderFinal_ops] at hw ⊢
+  rw [completeness_append]
+  rw [ulwc_append] at hw
+  simp only [mux4W_localLength] at hw
+  refine ⟨mux4W_complete _ _ _ _ _ _ env n hw.1, ?_⟩
+  exact elmTo_complete acc _ target env (n + 6) hw.2 hDx hDx2 h1 h2
+
+theorem jointLadderFold_ops_localLength (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
+    (n : Nat) :
+    Operations.localLength ((Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+      (jointLadderBody_constantLength tables rb sb)).operations n) = 3060 :=
+  jointLadderFold_localLength acc0 tables rb sb n
+
+theorem jointLadder_foldl_completeness (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
+    (env : ProverEnvironment Fp) (n : Nat) :
+    ConstraintsHold.Completeness env
+        ((Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+          (jointLadderBody_constantLength tables rb sb)).operations n) ↔
+      ∀ i : Fin 255, ConstraintsHold.Completeness env
+        ((jointLadderBody tables rb sb
+          (Circuit.FoldlM.foldlAcc n (Vector.finRange 255) (jointLadderBody tables rb sb) acc0 i) i).operations
+          (n + i * (jointLadderBody tables rb sb default i).localLength)) := by
+  simp only [ConstraintsHold.Completeness, Circuit.foldlRange.forAllNoOffset]
+
+@[irreducible] def jlAcc (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : Nat)
+    (j : Fin 255) : Pt :=
+  Circuit.FoldlM.foldlAcc n (Vector.finRange 255) (jointLadderBody tables rb sb) acc0 j
+
+theorem jlAcc_eq (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : Nat) (j : Fin 255) :
+    jlAcc acc0 tables rb sb n j
+      = Circuit.FoldlM.foldlAcc n (Vector.finRange 255) (jointLadderBody tables rb sb) acc0 j := by
+  unfold jlAcc
+  rfl
+
+@[irreducible] def jlOut (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : Nat) : Pt :=
+  (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+    (jointLadderBody_constantLength tables rb sb)).output n
+
+theorem jlOut_eq (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : Nat) :
+    jlOut acc0 tables rb sb n
+      = (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+        (jointLadderBody_constantLength tables rb sb)).output n := by
+  unfold jlOut
+  rfl
+
+theorem jointLadder_complete (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt)
+    (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((jointLadder acc0 tables rb sb target).operations n))
+    (hDx : ∀ j : Fin 255, Expression.eval env.toEnvironment
+        ((mux4W (rb.get ⟨255 - j.val, by omega⟩) (sb.get ⟨255 - j.val, by omega⟩)
+          (tables.x0 j.val) (tables.x1 j.val) (tables.x2 j.val) (tables.x3 j.val)).output
+            (n + j.val * 12)).1
+      - Expression.eval env.toEnvironment
+        (jlAcc acc0 tables rb sb n j).1 ≠ 0)
+    (hDx2 : ∀ j : Fin 255, Expression.eval env.toEnvironment
+        (jlAcc acc0 tables rb sb n j).1
+      - env.get (n + j.val * 12 + 6 + 2) ≠ 0)
+    (hDxf : Expression.eval env.toEnvironment
+        ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+          (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).output
+            (n + 3060)).1
+      - Expression.eval env.toEnvironment
+        (jlOut acc0 tables rb sb n).1 ≠ 0)
+    (hDx2f : Expression.eval env.toEnvironment
+        (jlOut acc0 tables rb sb n).1 - env.get (n + 3060 + 6 + 2) ≠ 0)
+    (h1 : env.get (n + 3060 + 6 + 3) * env.get (n + 3060 + 6 + 3)
+      - Expression.eval env.toEnvironment
+        (jlOut acc0 tables rb sb n).1
+      - env.get (n + 3060 + 6 + 2) - Expression.eval env.toEnvironment target.1 = 0)
+    (h2 : env.get (n + 3060 + 6 + 3) * (Expression.eval env.toEnvironment
+        (jlOut acc0 tables rb sb n).1 - Expression.eval env.toEnvironment target.1)
+      - Expression.eval env.toEnvironment
+        (jlOut acc0 tables rb sb n).2 - Expression.eval env.toEnvironment target.2 = 0) :
+    ConstraintsHold.Completeness env ((jointLadder acc0 tables rb sb target).operations n) := by
+  rw [jointLadder_ops] at hw ⊢
+  rw [completeness_append]
+  rw [ulwc_append] at hw
+  simp only [jointLadderFold_ops_localLength] at hw
+  refine ⟨?_, ?_⟩
+  · rw [jointLadder_foldl_completeness]
+    rw [Circuit.foldlRange.usesLocalWitnesses] at hw
+    simp only [← jlAcc_eq] at hw ⊢
+    intro j
+    simp only [jointLadderBody_localLength] at hw ⊢
+    exact jointLadderBody_complete tables rb sb (jlAcc acc0 tables rb sb n j)
+      env (n + j.val * 12) j (hw.1 j) (hDx j) (hDx2 j)
+  · simp only [← jlOut_eq] at hw ⊢
+    exact jointLadderFinal_complete tables rb sb (jlOut acc0 tables rb sb n)
+      target env (n + 3060) hw.2 hDxf hDx2f h1 h2
+
 end StandardECDSA
