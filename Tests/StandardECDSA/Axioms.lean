@@ -36,6 +36,7 @@ import StandardECDSA.Phases.FixedBaseSemantics
 import StandardECDSA.Phases.TableSemantics
 import StandardECDSA.Phases.LadderSemantics
 import StandardECDSA.Phases.Cost
+import StandardECDSA.Phases.HonestWitness
 
 /-! ## End-to-end -/
 
@@ -95,6 +96,19 @@ import StandardECDSA.Phases.Cost
 #print axioms StandardECDSA.Phases.fixedBase_cost
 #print axioms StandardECDSA.Phases.shiftedTables_cost
 #print axioms StandardECDSA.Phases.jointLadder_cost
+
+/-! ## Honest-witness row lemmas (gaps G1 / G2) -/
+
+#print axioms StandardECDSA.Phases.soundness_append_intro
+#print axioms StandardECDSA.Phases.soundness_bind_intro
+#print axioms StandardECDSA.Phases.muxConst4W_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.selW_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.mux4W_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.affAdd_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.elmCore_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.elm_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.fixedBaseBody_soundness_of_ulwc
+#print axioms StandardECDSA.Phases.jointLadderBody_soundness_of_ulwc
 #print axioms StandardECDSA.curvePhase_cost
 #print axioms StandardECDSA.bitsPhase_cost
 #print axioms StandardECDSA.cmpPhase_cost

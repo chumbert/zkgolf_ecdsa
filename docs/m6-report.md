@@ -245,6 +245,36 @@ The root cause of the error was reading the `elmTo` output wire as `x(target)`
 instead of `x(p + q)`. No circuit repair is needed, and the certified cost is
 unchanged at 4,628 allocations + 4,634 rows = 9,262.
 
+**Honest-witness row bricks — DONE** (`StandardECDSA/Phases/HonestWitness.lean`,
+new, green, axiom-clean). The induction needs to know that the *honest prover's*
+rows hold, and the honest prover's wire values are pinned by
+`ProverEnvironment.UsesLocalWitnessesCompleteness`. The file proves, for every
+gadget of the fixed-base and ladder phases,
+
+```text
+UsesLocalWitnessesCompleteness env n (g.operations n) → ConstraintsHold.Soundness env (g.operations n)
+```
+
+with exactly the extra hypotheses the guarded denominators need:
+
+* `soundness_append_intro`, `soundness_bind_intro` — the converses of the
+  existing `soundness_append` / `soundness_bind` splitters (needed because the
+  induction *assembles* rather than splits);
+* `muxConst4W_soundness_of_ulwc`, `selW_soundness_of_ulwc`,
+  `mux4W_soundness_of_ulwc` — unconditional;
+* `affAdd_soundness_of_ulwc` — needs `x(q) - x(p) ≠ 0`;
+* `elmCore_soundness_of_ulwc`, `elm_soundness_of_ulwc` — need
+  `x(q) - x(p) ≠ 0` and `x(p) - xu ≠ 0`;
+* `fixedBaseBody_soundness_of_ulwc`, `jointLadderBody_soundness_of_ulwc` — the
+  two phase bodies, taking the two halves' `UsesLocalWitnessesCompleteness`
+  facts separately so that no `>>=` or fold is ever `whnf`-ed.
+
+`elmTo` is deliberately absent: its last two rows are the assertion being
+checked, not witness definitions. `affDouble` is absent because
+`mat_complete` (`Gadgets/Semantics2.lean`) is stated for
+`ConstraintsHold.Completeness`; a `Soundness` version of it is the next brick
+needed before `affDouble` and hence `shiftedTables` can be covered.
+
 **What remains.** The bridge itself: for each of the 646 denominators, derive
 `x(P) - x(Q) ≠ 0` from `GoodOffset` by the honest-witness induction
 `P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)`, using
