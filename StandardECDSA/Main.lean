@@ -2045,4 +2045,284 @@ theorem jointLadder_complete (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256
     exact jointLadderFinal_complete tables rb sb (jlOut acc0 tables rb sb n)
       target env (n + 3060) hw.2 hDxf hDx2f h1 h2
 
+/-! ## Stage offsets of `main` -/
+
+def off1 (inp : Var Input Fp) (n : Nat) : Nat :=
+  n + Operations.localLength (seedPhase inp n).2
+
+def off2 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off1 inp n + Operations.localLength (curvePhase inp (seedPhase inp n).1 (off1 inp n)).2
+
+def off3 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off2 inp n + Operations.localLength (nonzeroPhase inp (off2 inp n)).2
+
+def off4 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off3 inp n + Operations.localLength (bitsPhase (off3 inp n)).2
+
+def off5 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off4 inp n + Operations.localLength
+    (bindPhase inp (bitsPhase (off3 inp n)).1 (off4 inp n)).2
+
+def off6 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off5 inp n + Operations.localLength
+    (cmpPhase (bitsPhase (off3 inp n)).1 (seedPhase inp n).1.overflow (off5 inp n)).2
+
+def off7 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off6 inp n + Operations.localLength
+    (fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+      (bitsPhase (off3 inp n)).1.eb (off6 inp n)).2
+
+def off8 (inp : Var Input Fp) (n : Nat) : Nat :=
+  off7 inp n + Operations.localLength
+    (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+      (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) (off7 inp n)).2
+
+/-- The nine stages of `main`, with the offsets named. -/
+theorem main_ops' (inp : Var Input Fp) (n : Nat) :
+    (main inp).operations n =
+      (seedPhase inp n).2
+      ++ (curvePhase inp (seedPhase inp n).1 (off1 inp n)).2
+      ++ (nonzeroPhase inp (off2 inp n)).2
+      ++ (bitsPhase (off3 inp n)).2
+      ++ (bindPhase inp (bitsPhase (off3 inp n)).1 (off4 inp n)).2
+      ++ (cmpPhase (bitsPhase (off3 inp n)).1 (seedPhase inp n).1.overflow (off5 inp n)).2
+      ++ (fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+            (bitsPhase (off3 inp n)).1.eb (off6 inp n)).2
+      ++ (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) (off7 inp n)).2
+      ++ (jointLadder ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+            (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+              (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) (off7 inp n)).1
+            (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb
+            (((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+                (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).1,
+              -((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+                (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).2)
+            (off8 inp n)).2 := by
+  rw [main_ops]
+  rfl
+
+/-- The witness facts the honest prover must supply for completeness. -/
+structure CompleteWitness (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat) : Prop where
+  hov : Expression.eval env (seedPhase inp n).1.overflow = 0 ∨
+        Expression.eval env (seedPhase inp n).1.overflow = 1
+  hQ : Expression.eval env.toEnvironment inp.pkY ^ 2
+      = Expression.eval env.toEnvironment inp.pkX ^ 3
+        + pa * Expression.eval env.toEnvironment inp.pkX + pb
+  hR : Expression.eval env.toEnvironment (seedPhase inp n).1.ry ^ 2
+      = Expression.eval env.toEnvironment
+          (inp.r + sc nFp (seedPhase inp n).1.overflow) ^ 3
+        + pa * Expression.eval env.toEnvironment
+            (inp.r + sc nFp (seedPhase inp n).1.overflow) + pb
+  hH : Expression.eval env.toEnvironment (seedPhase inp n).1.hy ^ 2
+      = Expression.eval env.toEnvironment (seedPhase inp n).1.hx ^ 3
+        + pa * Expression.eval env.toEnvironment (seedPhase inp n).1.hx + pb
+  hr : Expression.eval env inp.r ≠ 0
+  ht : Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s) ≠ 0
+  hb : ∀ k : Fin 256,
+    Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.eb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.eb.get k) = 1
+  hb' : ∀ k : Fin 256,
+    Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.rb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.rb.get k) = 1
+  hb'' : ∀ k : Fin 256,
+    Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.sb.get k) = 0 ∨
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.sb.get k) = 1
+  hd0 : Expression.eval env (linComb (bitsPhase (off3 inp n)).1.eb 0 128)
+      = Expression.eval env inp.digestLo
+  hd1 : Expression.eval env (linComb (bitsPhase (off3 inp n)).1.eb 128 128)
+      = Expression.eval env inp.digestHi
+  hd2 : Expression.eval env (linComb (bitsPhase (off3 inp n)).1.rb 0 256)
+      = Expression.eval env inp.r
+  hd3 : Expression.eval env (linComb (bitsPhase (off3 inp n)).1.sb 0 256)
+      = Expression.eval env (cst (Challenge.Specs.ECDSAP256.n : Fp) - inp.s)
+  hle : prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+    ((bitsPhase (off3 inp n)).1.rb.getD k (cst 0))) (255 - j)) 256 ≤ nSubOne
+  hle' : prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+    ((bitsPhase (off3 inp n)).1.sb.getD k (cst 0))) (255 - j)) 256 ≤ nSubOne
+  hleg : Expression.eval env.toEnvironment (seedPhase inp n).1.overflow = 1 →
+    prefVal (fun j => aNatOf (fun k => Expression.eval env.toEnvironment
+      ((bitsPhase (off3 inp n)).1.rb.getD k (cst 0))) (255 - j)) 256 ≤ pSubNSubOne
+  hfb0 : Expression.eval env.toEnvironment (cst shiftX)
+      - Expression.eval env.toEnvironment (seedPhase inp n).1.hx ≠ 0
+  hfb : ∀ i : Fin 128,
+    Expression.eval env.toEnvironment
+        (fbMux (bitsPhase (off3 inp n)).1.eb StandardECDSA.Math.FixedTables.fixedTables i
+          (off6 inp n + 4 + i.val * 5)).1.1
+      - Expression.eval env.toEnvironment
+        (fbAcc (bitsPhase (off3 inp n)).1.eb
+          ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (off6 inp n) i).1 ≠ 0
+  hshy : Expression.eval env (seedPhase inp n).1.hy ≠ 0
+  hs1 : Expression.eval env (seedPhase inp n).1.hx - env.get (off7 inp n + 2) ≠ 0
+  hs2 : Expression.eval env inp.pkX - env.get (off7 inp n + 6) ≠ 0
+  hs3 : Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow)
+      - env.get (off7 inp n + 6) ≠ 0
+  hs4 : Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow)
+      - env.get (off7 inp n + 10) ≠ 0
+  hs5 : Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow)
+      - env.get (off7 inp n + 22) ≠ 0
+  hj1 : ∀ j : Fin 255,
+    Expression.eval env.toEnvironment
+        ((mux4W ((bitsPhase (off3 inp n)).1.rb.get ⟨255 - j.val, by omega⟩)
+          ((bitsPhase (off3 inp n)).1.sb.get ⟨255 - j.val, by omega⟩)
+          ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1.x0 j.val)
+          ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1.x1 j.val)
+          ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1.x2 j.val)
+          ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1.x3 j.val)).output (off8 inp n + j.val * 12)).1
+      - Expression.eval env.toEnvironment
+        (jlAcc ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+          (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1
+          (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n) j).1 ≠ 0
+  hj2 : ∀ j : Fin 255,
+    Expression.eval env.toEnvironment
+        (jlAcc ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+          (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1
+          (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n) j).1
+      - env.get (off8 inp n + j.val * 12 + 6 + 2) ≠ 0
+  hjf1 : Expression.eval env.toEnvironment
+      ((mux4W ((bitsPhase (off3 inp n)).1.rb.get ⟨0, by omega⟩)
+        ((bitsPhase (off3 inp n)).1.sb.get ⟨0, by omega⟩)
+        ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1.x0 255)
+        ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1.x1 255)
+        ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1.x2 255)
+        ((shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1.x3 255)).output (off8 inp n + 3060)).1
+    - Expression.eval env.toEnvironment
+      (jlOut ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+        (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1
+        (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n)).1 ≠ 0
+  hjf2 : Expression.eval env.toEnvironment
+      (jlOut ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+        (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1
+        (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n)).1
+    - env.get (off8 inp n + 3060 + 6 + 2) ≠ 0
+  hjf3 : env.get (off8 inp n + 3060 + 6 + 3) * env.get (off8 inp n + 3060 + 6 + 3)
+    - Expression.eval env.toEnvironment
+      (jlOut ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+        (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1
+        (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n)).1
+    - env.get (off8 inp n + 3060 + 6 + 2)
+    - Expression.eval env.toEnvironment
+      (((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+          (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).1) = 0
+  hjf4 : env.get (off8 inp n + 3060 + 6 + 3) *
+      (Expression.eval env.toEnvironment
+        (jlOut ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+          (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+            (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+            (off7 inp n)).1
+          (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n)).1
+        - Expression.eval env.toEnvironment
+          (((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+              (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).1))
+    - Expression.eval env.toEnvironment
+      (jlOut ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+        (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+          (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+          (off7 inp n)).1
+        (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb (off8 inp n)).2
+    - Expression.eval env.toEnvironment
+      (-(((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+          (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).2)) = 0
+
+/-- **Completeness of `main` under an honest witness.** -/
+theorem main_complete_with_seed (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n))
+    (h : CompleteWitness inp env n) :
+    ConstraintsHold.Completeness env ((main inp).operations n) := by
+  rw [main_ops'] at hw ⊢
+  simp only [ulwc_append, Operations.append_localLength, ← Nat.add_assoc, and_assoc] at hw
+  obtain ⟨hw1, hw2, hw3, hw4, hw5, hw6, hw7, hw8, hw9⟩ := hw
+  simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append, and_assoc]
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · exact seedPhase_complete inp env n hw1 h.hov
+  · exact curvePhase_complete inp (seedPhase inp n).1 env (off1 inp n) hw2 h.hQ h.hR h.hH
+  · exact nonzeroPhase_complete inp env (off2 inp n) hw3 h.hr h.ht
+  · exact bitsPhase_complete env (off3 inp n) hw4 h.hb h.hb' h.hb''
+  · exact bindPhase_complete inp (bitsPhase (off3 inp n)).1 env (off4 inp n) hw5
+      h.hd0 h.hd1 h.hd2 h.hd3
+  · exact cmpPhase_complete (bitsPhase (off3 inp n)).1 (seedPhase inp n).1.overflow env
+      (off5 inp n) hw6 h.hb' h.hb'' h.hov h.hle h.hle' h.hleg
+  · exact fixedBase_complete ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+      (bitsPhase (off3 inp n)).1.eb env (off6 inp n) hw7 h.hfb0 h.hfb
+  · exact shiftedTables_complete ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+      (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+      env (off7 inp n) hw8 (seed_hx_deg inp n) h.hshy h.hs1 h.hs2 h.hs3 h.hs4 h.hs5
+  · exact jointLadder_complete ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+      (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+        (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) (off7 inp n)).1
+      (bitsPhase (off3 inp n)).1.rb (bitsPhase (off3 inp n)).1.sb
+      (((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+          (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).1,
+        -((fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+          (bitsPhase (off3 inp n)).1.eb (off6 inp n)).1).2)
+      env (off8 inp n) hw9 h.hj1 h.hj2 h.hjf1 h.hjf2 h.hjf3 h.hjf4
+
+/-- Completeness of `main` from the existence of an honest witness environment. -/
+theorem main_completeness (inp : Var Input Fp) (n : Nat)
+    (hwit : ∃ (env : ProverEnvironment Fp),
+      env.UsesLocalWitnessesCompleteness n ((main inp).operations n) ∧ CompleteWitness inp env n) :
+    ∃ (env : ProverEnvironment Fp), ConstraintsHold.Completeness env ((main inp).operations n) := by
+  obtain ⟨env, hw, h⟩ := hwit
+  exact ⟨env, main_complete_with_seed inp env n hw h⟩
+
+/-- Completeness implies soundness when the circuit has no lookups and no
+subcircuits. -/
+theorem soundness_of_completeness {env : ProverEnvironment Fp} {ops : Operations Fp}
+    (hl : ops.shallowLookups = []) (hs : ops.subcircuits = [])
+    (h : ConstraintsHold.Completeness env ops) :
+    ConstraintsHold.Soundness env.toEnvironment ops := by
+  rw [constraintsHold_completeness_iff_forall_mem] at h
+  rw [constraintsHold_soundness_iff_forall_mem]
+  obtain ⟨h1, h2, h3, h4⟩ := h
+  refine ⟨h1, ?_, h3, ?_⟩
+  · intro l hl'
+    rw [hl] at hl'
+    simp at hl'
+  · intro s hs'
+    rw [hs] at hs'
+    simp at hs'
+
+/-- **Acceptance equivalence for the actual circuit `main`.**  For an honest
+witness environment, the circuit's constraints hold exactly when the six inputs
+satisfy the standard P-256 ECDSA verification predicate. -/
+theorem main_accepts_iff_standard (inp : Var Input Fp) (penv : ProverEnvironment Fp) (n : Nat)
+    (hw : penv.UsesLocalWitnessesCompleteness n ((main inp).operations n))
+    (h : CompleteWitness inp penv n)
+    (hl : ((main inp).operations n).shallowLookups = [])
+    (hs : ((main inp).operations n).subcircuits = []) :
+    ConstraintsHold.Soundness penv ((main inp).operations n) ↔
+      standardVerify (Expression.eval penv inp.pkX) (Expression.eval penv inp.pkY)
+        (Expression.eval penv inp.digestLo) (Expression.eval penv inp.digestHi)
+        (Expression.eval penv inp.r) (Expression.eval penv inp.s) := by
+  constructor
+  · exact main_soundness inp penv n
+  · intro _
+    exact soundness_of_completeness hl hs (main_complete_with_seed inp penv n hw h)
+
 end StandardECDSA
