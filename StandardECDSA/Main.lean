@@ -1717,4 +1717,38 @@ theorem cmpPhase_complete (b : Bits) (overflow : E) (env : ProverEnvironment Fp)
         · rw [getD_eq_get hk]; exact hb ⟨k, hk⟩
         · rw [getD_eq_default hk]; simp) hg hleg
 
+
+theorem affAdd_complete (p q : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((affAdd p q).operations n))
+    (hDx : Expression.eval env.toEnvironment q.1 - Expression.eval env.toEnvironment p.1 ≠ 0) :
+    ConstraintsHold.Completeness env ((affAdd p q).operations n) := by
+  simp only [affAdd, nonzero, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [e1]; simp only [eval_cst]; linear_combination mul_inv_cancel₀ hDx
+  · rw [e2, e1]; field_simp; ring
+  · rw [e3]; ring
+  · rw [e4]; ring
+
+theorem affDouble_complete (p : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((affDouble p).operations n))
+    (hy : Expression.eval env.toEnvironment p.2 ≠ 0) :
+    ConstraintsHold.Completeness env ((affDouble p).operations n) := by
+  simp only [affDouble, mm, circuit_norm, pm] at hw ⊢
+  obtain ⟨e1, e2, e3, e4⟩ := hw
+  rw [mat_operations_eq] at e1
+  have hlen : Operations.localLength (mat (.mul p.1 p.1) n).2 = matLen (.mul p.1 p.1) :=
+    mat_localLength_eq _ n
+  simp only [hlen] at e2 e3 e4 ⊢
+  rw [Nat.add_comm (matLen (.mul p.1 p.1)) n] at e2 e3 e4
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [mat_operations_eq]
+    exact mat_complete _ n env e1
+  · have h2 : (2 : Fp) ≠ 0 := by decide
+    rw [e2]
+    field_simp
+    ring
+  · rw [e3]; ring
+  · rw [e4]; ring
+
 end StandardECDSA

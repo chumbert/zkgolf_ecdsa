@@ -1,6 +1,6 @@
 # M5 report (T17 whole-circuit assembly) — round 15
 
-Timing: before = `1795052773`, after = `1795053947`, elapsed_seconds = **1174**.
+Timing: before = `1795052773`, after = `1795054033`, elapsed_seconds = **1260**.
 
 ## Status
 
@@ -84,6 +84,8 @@ New in `Main.lean` (all proved, no `sorry`):
 | `assertLtOrderOf_complete` | `ltLoop_complete` lifted to `assertLtOrderOf` |
 | `assertLtOrderGuardedOf_complete` | `ltLoopGuarded_complete` lifted to `assertLtOrderGuardedOf` |
 | `cmpPhase_complete` | three comparator bounds → `Completeness (cmpPhase b overflow n).2` |
+| `affAdd_complete` | `eval q.1 - eval p.1 ≠ 0 → Completeness (affAdd p q).operations n` |
+| `affDouble_complete` | `eval p.2 ≠ 0 → Completeness (affDouble p).operations n` |
 
 All are stated over `ProverEnvironment` with `UsesLocalWitnessesCompleteness`
 (the Clean completeness notion, matching `Baseline/ECDSA_P256_Digest/Completeness`),
@@ -94,7 +96,11 @@ and compose the existing gadget-level `mat_complete`, `assertZeroLazy_complete`,
 
 - `fixedBase_complete`, `shiftedTables_complete`, `jointLadder_complete`
   (128- and 255-step loop completeness; needs the same anti-`whnf` discipline as
-  the soundness side).
+  the soundness side).  `affAdd_complete` / `affDouble_complete` are the leaf
+  bricks for these; `shiftedTables_complete` needs the eight distinct-`x`
+  denominators, which should be packaged through `Math/OffsetConditions.GoodOffset`
+  rather than written out as eight explicit hypotheses (the explicit form is
+  ~60 lines of nested `Operations.localLength` terms).
 - `main_complete_with_seed`, `main_completeness`, `main_accepts_iff_standard`.
 - The `ConstraintsHold.Completeness → ConstraintsHold.Soundness` bridge needed by
   the forward direction of `main_accepts_iff_standard` (our circuit has no
