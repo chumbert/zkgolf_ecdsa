@@ -94,6 +94,17 @@ theorem sbBits_of_main (inp : Var Input Fp) (sd : Witness.Seed) (env : ProverEnv
   rw [((main_hint_cells inp sd env n hhint hw).2.2.2.2.2.2 ⟨i.val, by omega⟩),
     Witness.seedCells_getD_t]
 
+/-- The digest-bit wires of the bits stage are the seed's digest bits. -/
+theorem ebGet_of_main (inp : Var Input Fp) (sd : Witness.Seed) (env : ProverEnvironment Fp)
+    (n : Nat) (hhint : env.hint = Witness.seedHint sd)
+    (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n)) :
+    ∀ k : Fin 256,
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.eb.get k)
+        = sd.digestBits k := by
+  intro k
+  rw [bitsPhase_out_eb, eval_var]
+  rw [((main_hint_cells inp sd env n hhint hw).2.2.2.2.1 k), Witness.seedCells_getD_digest]
+
 /-- The `r`-bit wires of the bits stage are the seed's `r` bits. -/
 theorem rbGet_of_main (inp : Var Input Fp) (sd : Witness.Seed) (env : ProverEnvironment Fp)
     (n : Nat) (hhint : env.hint = Witness.seedHint sd)

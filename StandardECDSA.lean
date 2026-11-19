@@ -15,3 +15,6 @@ import StandardECDSA.Witness.HonestLadderFinal
 import StandardECDSA.Witness.HonestLadderDenominators
 import StandardECDSA.Witness.HonestDigest
 import StandardECDSA.Witness.FamilyInvariance
+import StandardECDSA.Witness.CompleteWitnessOfULWC
+import StandardECDSA.Witness.LadderWitness
+import StandardECDSA.Witness.MainCompleteness
