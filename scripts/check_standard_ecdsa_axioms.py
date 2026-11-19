@@ -42,6 +42,10 @@ REQUIRED = {
     'StandardECDSA.Math.offsetCandidate_injective',
     'StandardECDSA.Math.exists_goodOffset',
     'StandardECDSA.Math.findGoodOffset_spec',
+    'StandardECDSA.Math.famOf_m',
+    'StandardECDSA.Math.famOf_m_gt_1039',
+    'StandardECDSA.Math.coeffOf_pos',
+    'StandardECDSA.Math.coeffOf_lt',
     # witness generation
     'StandardECDSA.Witness.generateSeed_complete',
     # group order

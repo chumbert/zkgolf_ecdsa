@@ -181,17 +181,54 @@ Three hypotheses remain explicit rather than discharged. None of them is a
 `sorry`; each is a clearly-true statement about the concrete circuit that is
 not yet proved.
 
-### G1 — T13 instantiation bridge
+### G1 — T13 instantiation bridge — **PARTIAL: enumeration done, bridge open**
 
 `CompleteWitness` (`StandardECDSA/Main.lean`) carries the concrete distinct-`x`
 denominators (`hfb0`, `hfb`, `hshy`, `hs1…hs5`, `hj1`, `hj2`, `hjf1…hjf4`) as
 explicit hypotheses. `Math/OffsetConditions.lean` proves `GoodOffset H hH fam`
-for the 1 039-slot family and `Math/OffsetCandidates.lean` proves
+for a generic family and `Math/OffsetCandidates.lean` proves
 `exists_goodOffset`, but the step `GoodOffset H hH fam → (concrete denominators
-≠ 0)` is not yet formalised. **Obstruction:** the concrete denominators are
-`Operations.localLength`-offset expressions over the nine-stage split, so the
-bridge needs the same `_ops`-rewriting discipline used for the cost
-certificates, applied to `Expression.eval` rather than `operationCount`.
+≠ 0)` is not yet formalised.
+
+**What is now done** — `StandardECDSA/Math/OffsetFamily.lean` (new, 250 lines,
+green, axiom-clean):
+
+* `SlotIx`, the explicit slot index type (a nested sum, so `Fintype.card`
+  computes by `simp` — no `decide`, no `maxRecDepth` bump);
+* `coeffOf : SlotIx → Nat` with `coeffOf_pos` and `coeffOf_lt`, so every slot
+  is a legal `BadFamily` equation `[c]H = B` with `c ∈ {1,2,3,4}`;
+* `targetOf`, the concrete right-hand side of each equation, built from `G`,
+  `Q`, `R` and the fixed shift `S` only — hence independent of `H`, as
+  `BadFamily` requires;
+* `famOf`, the concrete `BadFamily Grp`, and `famOf_m : (famOf …).m = 1289`.
+
+**Finding 1 — the plan's slot budget is too small.** The plan budgets 1,039
+slots and 1,040 candidates `[k+1]G`. The circuit actually needs **1,289** slots
+(`famOf_m`), because the plan's count omits the 128 fixed-base window
+denominators (`fbWin`, 256 slots). `famOf_m_gt_1039` records the gap. The
+candidate set must be enlarged to at least 1,290 points before
+`exists_goodOffset` can be instantiated; the 1,040 bound in
+`Math/OffsetCandidates.lean` and in `Witness.generateSeed` is therefore too
+tight.
+
+**Finding 2 — one genuinely input-only exception.** The final `elmTo`
+denominator `x(C_255) - x(-ep)` yields `2H = -(B_255 + [E]G)` (coefficient 2,
+slot `ladFin`) and `B_255 = [E]G` (coefficient **0**). The second is a condition
+on the inputs alone, so it cannot be a `BadFamily` slot. For a standard-valid
+signature `B_255 = [r]Q + [t]R = -[E]G`, so it reads `[2E]G = O`, i.e.
+`E ≡ 0 (mod n)`. Since `E < 2^256 < 2n`, that is `E ∈ {0, n}`: **for digest
+`E = 0` or `E = n` the final `elmTo` denominator vanishes identically and the
+circuit is unsatisfiable.** This is a genuine completeness limitation of the
+circuit, not a proof gap; it is recorded as `digest_nondegenerate`.
+
+**What remains.** The bridge itself: for each of the 646 denominators, derive
+`x(P) - x(Q) ≠ 0` from `GoodOffset` by the honest-witness induction
+`P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)`, using
+`UsesLocalWitnessesCompleteness` to read the hint values and the existing
+`fbStep` / `ladInv` / `affAdd_sound` bricks for the group step. The
+`H`-coefficients are already known to be `±1` (`ladAccH_eq`) and `±3`
+(`Tpt`), which is why every slot coefficient is in `{1,2,3,4}`. This is
+mechanical but large (128 + 255 step inductions) and was not completed.
 
 ### G2 — T16 concrete witness environment
 
