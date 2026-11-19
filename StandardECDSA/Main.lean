@@ -918,4 +918,583 @@ theorem toAffineLift_Qpt (Q : AffinePoint K) (hQ : Q.IsOnCurve params) (hns : NS
     isOnCurve_implies_nonsingular Q.toProjective params (toProjective_on_curve hQ)
   rw [WeierstrassCurve.Projective.Point.toAffine_some (W := params.toMathlib.toProjective) hns']
 
+
+theorem soundness_ops_of_snd {env : Environment Fp} {α : Type} {c : C α} {n : Nat}
+    (h : ConstraintsHold.Soundness env (c n).2) :
+    ConstraintsHold.Soundness env (c.operations n) := h
+
+theorem toAffineLift_nsmul (k : Nat) (P : Grp) :
+    WeierstrassCurve.Projective.Point.toAffineLift (k • P)
+      = k • WeierstrassCurve.Projective.Point.toAffineLift P :=
+  map_nsmul (WeierstrassCurve.Projective.Point.toAffineAddEquiv
+    (W := params.toMathlib.toProjective)) k P
+
+theorem toAffineLift_toMathlibPoint (R : AffinePoint K) (hR : R.IsOnCurve params)
+    (hns : NS R.X R.Y) :
+    WeierstrassCurve.Projective.Point.toAffineLift
+        (R.toProjective.toMathlibPoint params (toProjective_on_curve hR))
+      = WeierstrassCurve.Affine.Point.some R.X R.Y hns :=
+  toAffineLift_Qpt R hR hns
+
+theorem main_group_algebra
+    (Hpt QptA RptA : WeierstrassCurve.Affine.Point Wp) (E r t : Nat)
+    (ep target : WeierstrassCurve.Affine.Point Wp)
+    (hep : ep = Hpt + WeierstrassCurve.Projective.Point.toAffineLift (E • Gpt))
+    (htarget : target = (r : ℤ) • QptA + (t : ℤ) • RptA - Hpt)
+    (hneg : target = -ep)
+    (Q : AffinePoint K) (hQ : Q.IsOnCurve params) (hQns : NS Q.X Q.Y)
+    (R : AffinePoint K) (hR : R.IsOnCurve params) (hRns : NS R.X R.Y)
+    (hQptA : QptA = WeierstrassCurve.Affine.Point.some Q.X Q.Y hQns)
+    (hRptA : RptA = WeierstrassCurve.Affine.Point.some R.X R.Y hRns) :
+    E • Gpt + r • Qpt Q hQ
+      + t • R.toProjective.toMathlibPoint params (toProjective_on_curve hR) = 0 := by
+  have hinj := (WeierstrassCurve.Projective.Point.toAffineAddEquiv
+    (W := params.toMathlib.toProjective)).injective
+  apply hinj
+  change WeierstrassCurve.Projective.Point.toAffineLift
+      (E • Gpt + r • Qpt Q hQ
+        + t • R.toProjective.toMathlibPoint params (toProjective_on_curve hR))
+    = WeierstrassCurve.Projective.Point.toAffineLift 0
+  rw [toAffineLift_add, toAffineLift_add, toAffineLift_nsmul, toAffineLift_nsmul,
+    toAffineLift_nsmul, toAffineLift_zero,
+    toAffineLift_Qpt Q hQ hQns, toAffineLift_toMathlibPoint R hR hRns]
+  rw [hQptA, hRptA] at htarget
+  rw [hneg, hep] at htarget
+  rw [toAffineLift_nsmul] at htarget
+  have h3 : r • WeierstrassCurve.Affine.Point.some Q.X Q.Y hQns
+      + t • WeierstrassCurve.Affine.Point.some R.X R.Y hRns
+      = - (E • WeierstrassCurve.Projective.Point.toAffineLift Gpt) := by
+    have h4 : (r : ℤ) • WeierstrassCurve.Affine.Point.some Q.X Q.Y hQns
+        + (t : ℤ) • WeierstrassCurve.Affine.Point.some R.X R.Y hRns
+        = - (E • WeierstrassCurve.Projective.Point.toAffineLift Gpt) := by
+      have h6 : -(Hpt + E • WeierstrassCurve.Projective.Point.toAffineLift Gpt) + Hpt
+          = - (E • WeierstrassCurve.Projective.Point.toAffineLift Gpt) := by abel
+      rw [← h6, htarget]
+      abel
+    rw [show (r : ℤ) • WeierstrassCurve.Affine.Point.some Q.X Q.Y hQns
+          = r • WeierstrassCurve.Affine.Point.some Q.X Q.Y hQns from
+        Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) r _,
+      show (t : ℤ) • WeierstrassCurve.Affine.Point.some R.X R.Y hRns
+          = t • WeierstrassCurve.Affine.Point.some R.X R.Y hRns from
+        Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) t _] at h4
+    exact h4
+  rw [add_assoc, h3]
+  abel
+
+
+theorem shiftedTables_out (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) :
+    (shiftedTables h q r).output n
+      = { p0 := (var ⟨n + 6⟩, var ⟨n + 7⟩)
+          p1 := (var ⟨n + 10⟩, var ⟨n + 11⟩)
+          p2 := (var ⟨n + 14⟩, var ⟨n + 15⟩)
+          p3 := (var ⟨n + 18⟩, var ⟨n + 19⟩)
+          m0 := (var ⟨n + 6⟩, -var ⟨n + 7⟩)
+          m1 := (var ⟨n + 22⟩, var ⟨n + 23⟩)
+          m2 := (var ⟨n + 26⟩, var ⟨n + 27⟩)
+          m3 := (var ⟨n + 30⟩, var ⟨n + 31⟩) } := by
+  simp only [shiftedTables, circuit_norm, affAdd_localLength', affDouble_localLength' hdeg,
+    affAdd_output, affDouble_output, negPt]
+
+theorem tables_x0_fst (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x0 j).1 = var ⟨n + 6⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x0]; split <;> rfl
+
+theorem tables_x0_snd (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x0 j).2
+      = if j % 2 == 0 then var ⟨n + 7⟩ else -var ⟨n + 7⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x0]; split <;> rfl
+
+theorem tables_x1_fst (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x1 j).1
+      = if j % 2 == 0 then var ⟨n + 10⟩ else var ⟨n + 22⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x1]; split <;> rfl
+
+theorem tables_x1_snd (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x1 j).2
+      = if j % 2 == 0 then var ⟨n + 11⟩ else var ⟨n + 23⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x1]; split <;> rfl
+
+theorem tables_x2_fst (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x2 j).1
+      = if j % 2 == 0 then var ⟨n + 14⟩ else var ⟨n + 26⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x2]; split <;> rfl
+
+theorem tables_x2_snd (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x2 j).2
+      = if j % 2 == 0 then var ⟨n + 15⟩ else var ⟨n + 27⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x2]; split <;> rfl
+
+theorem tables_x3_fst (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x3 j).1
+      = if j % 2 == 0 then var ⟨n + 18⟩ else var ⟨n + 30⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x3]; split <;> rfl
+
+theorem tables_x3_snd (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1) (j : Nat) :
+    (((shiftedTables h q r).output n).x3 j).2
+      = if j % 2 == 0 then var ⟨n + 19⟩ else var ⟨n + 31⟩ := by
+  rw [shiftedTables_out h q r n hdeg]; simp only [Tables.x3]; split <;> rfl
+
+theorem sigma_eq (j : Nat) : sigma j = if j % 2 == 0 then (1 : ℤ) else -1 := by
+  unfold sigma
+  by_cases hj : j % 2 == 0
+  · rw [if_pos hj]
+    exact Even.neg_one_pow (Nat.even_iff.mpr (by simpa using hj))
+  · rw [if_neg hj]
+    have h1 : j % 2 = 1 := by
+      have h2 : j % 2 < 2 := Nat.mod_lt _ (by norm_num)
+      have h3 : j % 2 ≠ 0 := by simpa using hj
+      omega
+    exact Odd.neg_one_pow (Nat.odd_iff.mpr h1)
+
+theorem shiftedTables_htab (env : Environment Fp) (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1)
+    (hH : NS (Expression.eval env h.1) (Expression.eval env h.2))
+    (hQ : NS (Expression.eval env q.1) (Expression.eval env q.2))
+    (hR : NS (Expression.eval env r.1) (Expression.eval env r.2))
+    (hy : 2 * Expression.eval env h.2 ≠ 0)
+    (hdx1 : Expression.eval env h.1 - env.get (n + 2) ≠ 0)
+    (hdx2 : Expression.eval env q.1 - env.get (n + 6) ≠ 0)
+    (hdx3 : Expression.eval env r.1 - env.get (n + 6) ≠ 0)
+    (hdx4 : Expression.eval env r.1 - env.get (n + 10) ≠ 0)
+    (hdx5 : Expression.eval env r.1 - env.get (n + 22) ≠ 0)
+    (hc : ConstraintsHold.Soundness env ((shiftedTables h q r).operations n)) :
+    ∀ (j : Nat) (hj : j < 256) (v w : Fp), (v = 0 ∨ v = 1) → (w = 0 ∨ w = 1) →
+      ∃ hns : NS (if v = 0 then
+            (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x0 j).1
+              else Expression.eval env (((shiftedTables h q r).output n).x2 j).1)
+          else (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x1 j).1
+            else Expression.eval env (((shiftedTables h q r).output n).x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x0 j).2
+              else Expression.eval env (((shiftedTables h q r).output n).x2 j).2)
+          else (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x1 j).2
+            else Expression.eval env (((shiftedTables h q r).output n).x3 j).2)),
+        WeierstrassCurve.Affine.Point.some
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x0 j).1
+              else Expression.eval env (((shiftedTables h q r).output n).x2 j).1)
+          else (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x1 j).1
+            else Expression.eval env (((shiftedTables h q r).output n).x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x0 j).2
+              else Expression.eval env (((shiftedTables h q r).output n).x2 j).2)
+          else (if w = 0 then Expression.eval env (((shiftedTables h q r).output n).x1 j).2
+            else Expression.eval env (((shiftedTables h q r).output n).x3 j).2)) hns
+          = (3 * sigma j) • WeierstrassCurve.Affine.Point.some (Expression.eval env h.1) (Expression.eval env h.2) hH
+            + (if v = 1 then (1 : ℤ) else 0) • WeierstrassCurve.Affine.Point.some (Expression.eval env q.1) (Expression.eval env q.2) hQ
+            + (if w = 1 then (1 : ℤ) else 0) • WeierstrassCurve.Affine.Point.some (Expression.eval env r.1) (Expression.eval env r.2) hR := by
+  intro j hj v w hv hw
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7, e0, e1, e2, e3, e4, e5, e6, e7⟩ :=
+    shiftedTables_spec env h q r n hdeg hH hQ hR hy hdx1 hdx2 hdx3 hdx4 hdx5 hc
+  rw [tables_x0_fst h q r n hdeg j, tables_x0_snd h q r n hdeg j,
+    tables_x1_fst h q r n hdeg j, tables_x1_snd h q r n hdeg j,
+    tables_x2_fst h q r n hdeg j, tables_x2_snd h q r n hdeg j,
+    tables_x3_fst h q r n hdeg j, tables_x3_snd h q r n hdeg j]
+  simp only [eval_var, eval_neg]
+  set Hpt := WeierstrassCurve.Affine.Point.some (Expression.eval env h.1) (Expression.eval env h.2) hH
+    with hHpt
+  set Qpt := WeierstrassCurve.Affine.Point.some (Expression.eval env q.1) (Expression.eval env q.2) hQ
+    with hQpt
+  set Rpt := WeierstrassCurve.Affine.Point.some (Expression.eval env r.1) (Expression.eval env r.2) hR
+    with hRpt
+  rcases hv with rfl | rfl <;> rcases hw with rfl | rfl
+  · simp only [ite_true, if_neg (one_ne_zero : (1 : Fp) ≠ 0),
+      if_neg (zero_ne_one : (0 : Fp) ≠ 1), eval_var, eval_neg]
+    by_cases hj2 : j % 2 == 0
+    · simp only [if_pos hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = 3 • Hpt := by
+        rw [sigma_eq j, if_pos hj2, mul_one]
+        exact Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+      refine ⟨h0, ?_⟩
+      rw [e0, hz]
+      simp [zero_zsmul, add_zero]
+    · simp only [if_neg hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = -(3 • Hpt) := by
+        rw [sigma_eq j, if_neg hj2]
+        have h3 : ((3 : ℤ)) • Hpt = 3 • Hpt :=
+          Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+        rw [show (3 : ℤ) * (-1) = -(3 : ℤ) from by norm_num, neg_zsmul, h3]
+      refine ⟨h4, ?_⟩
+      rw [e4, hz]
+      simp [zero_zsmul, add_zero]
+  · simp only [ite_true, if_neg (one_ne_zero : (1 : Fp) ≠ 0),
+      if_neg (zero_ne_one : (0 : Fp) ≠ 1), eval_var, eval_neg]
+    by_cases hj2 : j % 2 == 0
+    · simp only [if_pos hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = 3 • Hpt := by
+        rw [sigma_eq j, if_pos hj2, mul_one]
+        exact Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+      refine ⟨h2, ?_⟩
+      rw [e2, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+    · simp only [if_neg hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = -(3 • Hpt) := by
+        rw [sigma_eq j, if_neg hj2]
+        have h3 : ((3 : ℤ)) • Hpt = 3 • Hpt :=
+          Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+        rw [show (3 : ℤ) * (-1) = -(3 : ℤ) from by norm_num, neg_zsmul, h3]
+      refine ⟨h6, ?_⟩
+      rw [e6, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+  · simp only [ite_true, if_neg (one_ne_zero : (1 : Fp) ≠ 0),
+      if_neg (zero_ne_one : (0 : Fp) ≠ 1), eval_var, eval_neg]
+    by_cases hj2 : j % 2 == 0
+    · simp only [if_pos hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = 3 • Hpt := by
+        rw [sigma_eq j, if_pos hj2, mul_one]
+        exact Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+      refine ⟨h1, ?_⟩
+      rw [e1, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+    · simp only [if_neg hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = -(3 • Hpt) := by
+        rw [sigma_eq j, if_neg hj2]
+        have h3 : ((3 : ℤ)) • Hpt = 3 • Hpt :=
+          Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+        rw [show (3 : ℤ) * (-1) = -(3 : ℤ) from by norm_num, neg_zsmul, h3]
+      refine ⟨h5, ?_⟩
+      rw [e5, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+  · simp only [ite_true, if_neg (one_ne_zero : (1 : Fp) ≠ 0),
+      if_neg (zero_ne_one : (0 : Fp) ≠ 1), eval_var, eval_neg]
+    by_cases hj2 : j % 2 == 0
+    · simp only [if_pos hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = 3 • Hpt := by
+        rw [sigma_eq j, if_pos hj2, mul_one]
+        exact Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+      refine ⟨h3, ?_⟩
+      rw [e3, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+    · simp only [if_neg hj2, eval_var, eval_neg]
+      have hz : (3 * sigma j) • Hpt = -(3 • Hpt) := by
+        rw [sigma_eq j, if_neg hj2]
+        have h3 : ((3 : ℤ)) • Hpt = 3 • Hpt :=
+          Nat.cast_smul_eq_nsmul (M := WeierstrassCurve.Affine.Point Wp) (R := ℤ) 3 Hpt
+        rw [show (3 : ℤ) * (-1) = -(3 : ℤ) from by norm_num, neg_zsmul, h3]
+      refine ⟨h7, ?_⟩
+      rw [e7, hz]
+      simp [zero_zsmul, one_zsmul, add_zero]
+
+
+theorem prefVal_rev_nat (f : Nat → Nat) :
+    prefVal (fun j => f (255 - j)) 256 = leNat (fun i : Fin 256 => f i.val) := by
+  have h1 : prefVal (fun j => f (255 - j)) 256
+      = prefVal (fun j => (fun i : Fin 256 => f i.val) ⟨255 - j, by omega⟩) 256 := rfl
+  rw [h1, prefVal_rev (fun i : Fin 256 => f i.val)]
+
+theorem seed_hx_deg (inp : Var Input Fp) (n : Nat) : deg (seedPhase inp n).1.hx = 1 := by
+  show deg ((seedPhase inp).output n).hx = 1
+  rw [seedPhase_out]
+  simp only [hint, witnessField, Circuit.output, deg, Challenge.CostR1CS.degree]
+
+theorem affDouble_hy (env : Environment Fp) (p : Pt) (n : Nat) (hdeg : deg p.1 = 1)
+    (hA : NS (Expression.eval env p.1) (Expression.eval env p.2))
+    (h : ConstraintsHold.Soundness env ((affDouble p).operations n)) :
+    2 * Expression.eval env p.2 ≠ 0 := by
+  have hml : matLen (.mul p.1 p.1) = 1 := matLen_mul_of_deg_one hdeg hdeg
+  simp only [affDouble, mm, circuit_norm, pm] at h
+  obtain ⟨r1, r2, -, -⟩ := h
+  have hlen : Operations.localLength (mat (.mul p.1 p.1) n).2 = matLen (.mul p.1 p.1) :=
+    mat_localLength_eq _ n
+  rw [hlen, hml] at r2
+  have hxx : Expression.eval env ((mat (.mul p.1 p.1) n).1)
+      = Expression.eval env p.1 * Expression.eval env p.1 := by
+    rw [mat_output_eq]
+    rw [mat_eval_gen (.mul p.1 p.1) n env
+      { assert := fun e => Expression.eval env e = 0
+        lookup := fun l => l.Soundness env
+        interact := fun i => i.Guarantees env
+        subcircuit := fun {m} s => s.Assumptions env → s.Spec env }
+      (fun x hx => hx) r1]
+    simp only [Expression.eval]
+  have h2 : (2 * Expression.eval env p.2) * env.get (n + 1)
+      = 3 * (Expression.eval env p.1 * Expression.eval env p.1) + pa := by
+    have h2' : Expression.eval env (sc 2 p.2) * env.get (n + 1)
+        - Expression.eval env (sc 3 (mat (.mul p.1 p.1) n).1)
+        = Expression.eval env (cst pa) := sub_eq_zero.mp r2
+    rw [StandardECDSA.eval_sc, StandardECDSA.eval_sc, StandardECDSA.eval_cst, hxx] at h2'
+    rw [eq_add_of_sub_eq h2']
+    exact add_comm _ _
+  have hCurve : (Expression.eval env p.2)^2
+      = (Expression.eval env p.1)^3 + params.a * Expression.eval env p.1 + params.b := by
+    unfold NS at hA
+    obtain ⟨h1, -⟩ := hA
+    rw [WeierstrassCurve.Affine.equation_iff'] at h1
+    simp only [CurveParameters.toMathlib] at h1
+    linear_combination h1
+  refine StandardECDSA.Math.ElmAlgebra.double_denominator_ne params.a params.b
+    (Expression.eval env p.1) (Expression.eval env p.2) (env.get (n + 1)) (by decide)
+    discriminant_ne_zero hCurve ?_
+  rw [h2]
+  have hpa : pa = params.a := rfl
+  rw [hpa]
+  ring
+
+theorem shiftedTables_hy (env : Environment Fp) (h q r : Pt) (n : Nat) (hdeg : deg h.1 = 1)
+    (hH : NS (Expression.eval env h.1) (Expression.eval env h.2))
+    (hc : ConstraintsHold.Soundness env ((shiftedTables h q r).operations n)) :
+    2 * Expression.eval env h.2 ≠ 0 := by
+  simp only [shiftedTables, circuit_norm] at hc
+  simp only [affAdd_localLength', affDouble_localLength' hdeg] at hc
+  obtain ⟨a1, -, -, -, -, -, -, -, -, -, -, -, -, -, -⟩ := hc
+  exact affDouble_hy env h n hdeg hH a1
+
+set_option linter.constructorNameAsVariable false in
+/-- `eval` of `inp.r + sc nFp o`. -/
+theorem eval_r_plus_overflow (env : Environment Fp) (inp : Var Input Fp) (o : E) :
+    Expression.eval env (inp.r + sc nFp o)
+      = Expression.eval env inp.r + (StandardECDSA.n : Fp) * Expression.eval env o := by
+  simp only [eval_add', eval_sc', eval_cst, nFp]
+
+theorem main_soundness (inp : Var Input Fp) (env : Environment Fp) (n : Nat)
+    (hc : ConstraintsHold.Soundness env ((main inp).operations n)) :
+    standardVerify (Expression.eval env inp.pkX) (Expression.eval env inp.pkY)
+      (Expression.eval env inp.digestLo) (Expression.eval env inp.digestHi)
+      (Expression.eval env inp.r) (Expression.eval env inp.s) := by
+  rw [standard_iff_signaturePoint]
+  simp only [signaturePointVerify]
+  rw [main_ops] at hc
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9⟩ := soundness_append9 hc
+  set n1 := n + Operations.localLength (seedPhase inp n).2 with hn1
+  set n2 := n1 + Operations.localLength (curvePhase inp (seedPhase inp n).1 n1).2 with hn2
+  set n3 := n2 + Operations.localLength (nonzeroPhase inp n2).2 with hn3
+  set n4 := n3 + Operations.localLength (bitsPhase n3).2 with hn4
+  set n5 := n4 + Operations.localLength (bindPhase inp (bitsPhase n3).1 n4).2 with hn5
+  set n6 := n5 + Operations.localLength
+    (cmpPhase (bitsPhase n3).1 (seedPhase inp n).1.overflow n5).2 with hn6
+  set n7 := n6 + Operations.localLength
+    (fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (bitsPhase n3).1.eb n6).2 with hn7
+  set n8 := n7 + Operations.localLength
+    (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+      (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) n7).2 with hn8
+  -- stage facts
+  have hov := seedPhase_sound inp env n h1
+  obtain ⟨hQns, hRns, hHns⟩ := curvePhase_sound inp (seedPhase inp n).1 env n1 h2
+  obtain ⟨hrne, htne⟩ := nonzeroPhase_sound inp env n2 h3
+  obtain ⟨heb, hrb, hsb⟩ := bitsPhase_sound env n3 h4
+  obtain ⟨hlo, hhi, hrbind, hsbind⟩ := bindPhase_sound inp (bitsPhase n3).1 env n4 h5
+  obtain ⟨hcmpR, hcmpS, hcmpG⟩ :=
+    cmpPhase_sound (bitsPhase n3).1 (seedPhase inp n).1.overflow env n5 hrb hsb h6
+  -- comparator bounds in `leNat` form
+  have hrb_le : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get i)).val)
+      ≤ StandardECDSA.n - 1 := by
+    rw [prefVal_rev_nat (fun k => aNatOf
+      (fun k' => Expression.eval env ((bitsPhase n3).1.rb.getD k' (cst 0))) k)] at hcmpR
+    rw [← leNat_val_eq_aNatOf env _ hrb] at hcmpR
+    exact hcmpR
+  have hsb_le : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get i)).val)
+      ≤ StandardECDSA.n - 1 := by
+    rw [prefVal_rev_nat (fun k => aNatOf
+      (fun k' => Expression.eval env ((bitsPhase n3).1.sb.getD k' (cst 0))) k)] at hcmpS
+    rw [← leNat_val_eq_aNatOf env _ hsb] at hcmpS
+    exact hcmpS
+  have hbound_rb : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get i)).val) < p := by
+    have h := hrb_le
+    have h2' := n_lt_p
+    omega
+  have hbound_sb : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get i)).val) < p := by
+    have h := hsb_le
+    have h2' := n_lt_p
+    omega
+  -- `r` bounds
+  have hrv : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get i)).val)
+      = (Expression.eval env inp.r).val :=
+    leNat_rb_eq env inp (bitsPhase n3).1 hrbind hrb hbound_rb
+  have hkSub : nSubOne < StandardECDSA.n := by decide
+  have hrv_lt : (Expression.eval env inp.r).val < StandardECDSA.n := by
+    rw [← hrv]
+    have h := hrb_le
+    omega
+  have hrv_pos : 0 < (Expression.eval env inp.r).val := by
+    have hne : (Expression.eval env inp.r).val ≠ 0 := (ZMod.val_ne_zero _).mpr hrne
+    exact Nat.pos_of_ne_zero hne
+  -- `s` bounds
+  have hsv : ((StandardECDSA.n : Fp) - Expression.eval env inp.s).val
+      = leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get i)).val) := by
+    have hget : ∀ (i : Nat) (hi : i < 256),
+        (bitsPhase n3).1.sb.getD i (cst 0) = (bitsPhase n3).1.sb.get ⟨i, hi⟩ :=
+      fun i hi => getD_eq_get hi
+    have hv : ∀ i : Fin 256,
+        Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0)) = 0 ∨
+        Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0)) = 1 := by
+      intro i; rw [Nat.zero_add, hget i.val (by omega)]; exact hsb _
+    have h1' : leSum (fun i : Fin 256 =>
+        Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0)))
+        = Expression.eval env (cst (StandardECDSA.n : Fp) - inp.s) := by
+      rw [← eval_linComb]; exact hsbind
+    have h2' : (leSum (fun i : Fin 256 =>
+        Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0)))).val
+        = leNat (fun i : Fin 256 =>
+            (Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0))).val) :=
+      val_leSum' _ hv (by
+        rw [← leNat_congr (fun i => by rw [Nat.zero_add, hget i.val (by omega)])]
+        exact hbound_sb)
+    have h3' : leNat (fun i : Fin 256 =>
+        (Expression.eval env ((bitsPhase n3).1.sb.getD (0 + i.val) (cst 0))).val)
+        = leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get i)).val) :=
+      leNat_congr fun i => by rw [Nat.zero_add, hget i.val (by omega)]
+    rw [← h3', ← h2', h1', eval_sub, eval_cst]
+  have hsv_le : ((StandardECDSA.n : Fp) - Expression.eval env inp.s).val
+      ≤ StandardECDSA.n - 1 := by
+    rw [hsv]; exact hsb_le
+  have hsv_ne : ((StandardECDSA.n : Fp) - Expression.eval env inp.s) ≠ 0 := by
+    have h := htne
+    rwa [eval_sub, eval_cst] at h
+  have hsval : (Expression.eval env inp.s).val
+      = StandardECDSA.n
+        - ((StandardECDSA.n : Fp) - Expression.eval env inp.s).val := by
+    have h1' : Expression.eval env inp.s
+        = (StandardECDSA.n : Fp)
+          - ((StandardECDSA.n : Fp) - Expression.eval env inp.s) := by ring
+    nth_rewrite 1 [h1']
+    exact val_nFp_sub_le _ (by
+      have h1 := hsv_le
+      have h2 : StandardECDSA.n - 1 ≤ Challenge.Specs.ECDSAP256.n := by decide
+      omega)
+  have hsv_ne' : ((StandardECDSA.n : Fp) - Expression.eval env inp.s).val ≠ 0 :=
+    (ZMod.val_ne_zero _).mpr hsv_ne
+  have hsv_lt : (Expression.eval env inp.s).val < StandardECDSA.n := by
+    rw [hsval]; omega
+  have hsv_pos : 0 < (Expression.eval env inp.s).val := by
+    rw [hsval]; omega
+  have htv : leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get i)).val)
+      = StandardECDSA.n - (Expression.eval env inp.s).val :=
+    leNat_sb_eq env inp (bitsPhase n3).1 hsbind hsb hbound_sb hsv_lt
+  -- digest
+  have hE : digestNat env (bitsPhase n3).1.eb
+      = (Digest.mk (Expression.eval env inp.digestLo)
+          (Expression.eval env inp.digestHi)).toNat :=
+    leNat_eb_eq_digest env inp (bitsPhase n3).1 hlo hhi heb
+  -- the two phase points
+  set hxE : E := (seedPhase inp n).1.hx with hhxE
+  set hyE : E := (seedPhase inp n).1.hy with hhyE
+  have hdegH : deg hxE = 1 := seed_hx_deg inp n
+  -- fixed base
+  obtain ⟨hdx0, hdx⟩ := fixedBase_dx env (hxE, hyE) (bitsPhase n3).1.eb n6 h7
+  obtain ⟨hnsEp, hEp⟩ := fixedBase_spec env (hxE, hyE) (bitsPhase n3).1.eb n6 hHns heb hdx0 hdx h7
+  have hEpP : WeierstrassCurve.Affine.Point.some (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).1)
+        (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).2) hnsEp
+      = WeierstrassCurve.Affine.Point.some (Expression.eval env hxE) (Expression.eval env hyE) hHns
+        + WeierstrassCurve.Projective.Point.toAffineLift
+            (digestNat env (bitsPhase n3).1.eb • Gpt) := hEp
+  -- shifted tables
+  have h8' : ConstraintsHold.Soundness env ((shiftedTables (hxE, hyE) (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)).operations n7) :=
+    Eq.mp (congrArg (fun L => ConstraintsHold.Soundness env L)
+      (shiftedTables_snd (hxE, hyE) (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) n7)) h8
+  have hy := shiftedTables_hy env (hxE, hyE)
+    (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+    n7 hdegH hHns h8'
+  obtain ⟨hdx1, hdx2, hdx3, hdx4, hdx5⟩ := shiftedTables_dx env
+    (hxE, hyE) (inp.pkX, inp.pkY)
+    (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) n7 hdegH h8'
+  have htab := shiftedTables_htab env (hxE, hyE)
+    (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+    n7 hdegH hHns hQns hRns hy hdx1 hdx2 hdx3 hdx4 hdx5 h8'
+  -- the ladder
+  have hacc0 : ∃ hns : NS (Expression.eval env (hxE, -hyE).1)
+      (Expression.eval env (hxE, -hyE).2),
+      WeierstrassCurve.Affine.Point.some (Expression.eval env (hxE, -hyE).1)
+        (Expression.eval env (hxE, -hyE).2) hns
+      = - WeierstrassCurve.Affine.Point.some (Expression.eval env hxE)
+          (Expression.eval env hyE) hHns := by
+    refine ⟨?_, ?_⟩
+    · exact ns_congr (hx := rfl) (hy := eval_neg env _) (h := negPt_ns hHns)
+    · refine (some_congr (hx := rfl) (hy := (eval_neg env _).symm) (h := negPt_ns hHns)
+        (h' := ns_congr (hx := rfl) (hy := eval_neg env _) (h := negPt_ns hHns))).symm.trans ?_
+      exact negPt_group _ _ hHns
+  have hT : NS (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).1) (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).2) :=
+    ns_congr (hx := rfl) (hy := eval_neg env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2)) (h := negPt_ns hnsEp)
+  have hJL : ∃ hns : NS (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).1)
+      (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).2),
+      WeierstrassCurve.Affine.Point.some (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).1)
+        (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).2) hns
+      = (leNat (fun k : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get k)).val) : ℤ) •
+          WeierstrassCurve.Affine.Point.some (Expression.eval env inp.pkX) (Expression.eval env inp.pkY) hQns
+        + (leNat (fun k : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get k)).val) : ℤ) •
+          WeierstrassCurve.Affine.Point.some (Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow))
+            (Expression.eval env (seedPhase inp n).1.ry) hRns
+        - WeierstrassCurve.Affine.Point.some (Expression.eval env hxE) (Expression.eval env hyE) hHns := by
+    refine jointLadder_spec env (WeierstrassCurve.Affine.Point.some (Expression.eval env hxE) (Expression.eval env hyE) hHns) (WeierstrassCurve.Affine.Point.some (Expression.eval env inp.pkX) (Expression.eval env inp.pkY) hQns) (WeierstrassCurve.Affine.Point.some (Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow)) (Expression.eval env (seedPhase inp n).1.ry) hRns) (hxE, -hyE) ((shiftedTables (hxE, hyE) (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry) n7).1) (bitsPhase n3).1.rb (bitsPhase n3).1.sb (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2) n8 hacc0 hrb hsb htab hT h9
+  obtain ⟨hnsT, hTgt⟩ := hJL
+  have hneg : WeierstrassCurve.Affine.Point.some (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).1)
+      (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).2) hnsT
+      = - WeierstrassCurve.Affine.Point.some (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).1)
+          (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).2) hnsEp := by
+    exact (some_congr (hx := rfl) (hy := eval_neg env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2))
+      (h := hT) (h' := negPt_ns hnsEp)).trans (negPt_group _ _ hnsEp)
+  -- the group algebra
+  have hzero := main_group_algebra
+    (WeierstrassCurve.Affine.Point.some (Expression.eval env (seedPhase inp n).1.hx)
+      (Expression.eval env (seedPhase inp n).1.hy) hHns)
+    (WeierstrassCurve.Affine.Point.some (Expression.eval env inp.pkX) (Expression.eval env inp.pkY) hQns)
+    (WeierstrassCurve.Affine.Point.some (Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow))
+      (Expression.eval env (seedPhase inp n).1.ry) hRns)
+    (digestNat env (bitsPhase n3).1.eb)
+    (leNat (fun k : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get k)).val))
+    (leNat (fun k : Fin 256 => (Expression.eval env ((bitsPhase n3).1.sb.get k)).val))
+    (WeierstrassCurve.Affine.Point.some (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).1)
+      (Expression.eval env ((fixedBase (hxE, hyE) (bitsPhase n3).1.eb).output n6).2) hnsEp)
+    (WeierstrassCurve.Affine.Point.some (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).1)
+      (Expression.eval env (((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.1, -((fixedBase (hxE, hyE) (bitsPhase n3).1.eb) n6).1.2).2) hnsT)
+    hEpP hTgt hneg
+    ⟨Expression.eval env inp.pkX, Expression.eval env inp.pkY⟩
+    (ns_isOnCurve _ _ hQns) hQns
+    ⟨Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow),
+      Expression.eval env (seedPhase inp n).1.ry⟩
+    (ns_isOnCurve _ _ hRns) hRns rfl rfl
+  -- the overflow bound
+  have hovv : (Expression.eval env (seedPhase inp n).1.overflow).val = 0 ∨
+      (Expression.eval env (seedPhase inp n).1.overflow).val = 1 := by
+    rcases hov with h | h
+    · exact Or.inl (by rw [h, ZMod.val_zero])
+    · exact Or.inr (by rw [h, ZMod.val_one])
+  have hov1 : Expression.eval env (seedPhase inp n).1.overflow = 1 →
+      leNat (fun i : Fin 256 => (Expression.eval env ((bitsPhase n3).1.rb.get i)).val)
+        ≤ p - StandardECDSA.n - 1 := by
+    intro hg
+    have h2' := hcmpG hg
+    rw [prefVal_rev_nat (fun k => aNatOf
+      (fun k' => Expression.eval env ((bitsPhase n3).1.rb.getD k' (cst 0))) k)] at h2'
+    rw [← leNat_val_eq_aNatOf env _ hrb] at h2'
+    exact h2'
+  have hrn : (Expression.eval env inp.r).val
+      + StandardECDSA.n
+        * (Expression.eval env (seedPhase inp n).1.overflow).val < p := by
+    rcases hovv with h | h
+    · rw [h, Nat.mul_zero, Nat.add_zero]; exact lt_trans hrv_lt n_lt_p
+    · rw [h, Nat.mul_one]
+      have hg : Expression.eval env (seedPhase inp n).1.overflow = 1 := by
+        rw [← ZMod.natCast_zmod_val (Expression.eval env (seedPhase inp n).1.overflow), h,
+          Nat.cast_one]
+      have hle := hov1 hg
+      rw [hrv] at hle
+      have h2' := n_lt_p
+      omega
+  -- assemble
+  refine ⟨ns_isOnCurve _ _ hQns, hrv_pos, hrv_lt, hsv_pos, hsv_lt,
+    ⟨Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow),
+      Expression.eval env (seedPhase inp n).1.ry⟩,
+    ns_isOnCurve _ _ hRns, ?_, ?_⟩
+  · refine (projectiveEquiv_iff_toMathlib
+      (sigW ⟨Expression.eval env inp.pkX, Expression.eval env inp.pkY⟩
+        (Expression.eval env inp.r) (Expression.eval env inp.s)
+        (Digest.mk (Expression.eval env inp.digestLo) (Expression.eval env inp.digestHi)).toNat
+        ⟨Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow),
+          Expression.eval env (seedPhase inp n).1.ry⟩)
+      infinityPoint ?_ (infinity_on_curve params)).mpr ?_
+    · exact sigW_on_curve _ (ns_isOnCurve _ _ hQns) _ _ _ _ (ns_isOnCurve _ _ hRns)
+    · rw [infinity_toMathlib,
+        sigW_toMathlib _ (ns_isOnCurve _ _ hQns) _ _ _ _ (ns_isOnCurve _ _ hRns) hrv_lt hsv_pos]
+      rw [← hE, ← hrv, ← htv]
+      exact hzero
+  · have hRX : (⟨Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow),
+        Expression.eval env (seedPhase inp n).1.ry⟩ : AffinePoint K).X
+        = (((Expression.eval env inp.r).val
+          + StandardECDSA.n
+            * (Expression.eval env (seedPhase inp n).1.overflow).val : Nat) : Fp) := by
+      show Expression.eval env (inp.r + sc nFp (seedPhase inp n).1.overflow) = _
+      rw [eval_r_plus_overflow]
+      rw [Nat.cast_add, Nat.cast_mul, ZMod.natCast_zmod_val, ZMod.natCast_zmod_val]
+    rw [hRX]
+    exact (x_mod_order_iff_lift hrv_lt hovv hrn).2
+
 end StandardECDSA

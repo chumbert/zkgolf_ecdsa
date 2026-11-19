@@ -81,6 +81,35 @@ def jointLadderFinal (tables : Tables) (rb sb : Vector E 256) (acc target : Pt) 
     let e := elmTo acc m.1 target (n + Operations.localLength m.2)
     (e.1, m.2 ++ e.2)
 
+/-- The operations of the joint ladder, sealed behind an `@[irreducible]`
+definition.
+
+`Expression.eval` is a pattern-matching `def`, and `set`-introduced abbreviations
+are transparent local definitions, so any definitional-unfolding check that
+mentions `(jointLadder … n).2` would `whnf` the whole 255-step `foldlRange` and
+exceed the recursion budget.  By returning `jointLadderOps … n` from
+`jointLadder`, `(jointLadder … n).2` reduces to the *stuck* term
+`jointLadderOps … n` in one step.  The fold is only unfolded where it is
+actually analysed, via `jointLadderOps_eq`. -/
+@[irreducible] def jointLadderOps (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
+    (target : Pt) (n : Nat) : Operations Fp :=
+  let r := Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+    (jointLadderBody_constantLength tables rb sb) n
+  let e := jointLadderFinal tables rb sb r.1 target (n + Operations.localLength r.2)
+  r.2 ++ e.2
+
+/-- Defining equation of `jointLadderOps`. -/
+theorem jointLadderOps_eq (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
+    (target : Pt) (n : Nat) :
+    jointLadderOps acc0 tables rb sb target n
+      = (let r := Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+            (jointLadderBody_constantLength tables rb sb) n
+         let e := jointLadderFinal tables rb sb r.1 target
+            (n + Operations.localLength r.2)
+         r.2 ++ e.2) := by
+  unfold jointLadderOps
+  rfl
+
 /-- The joint ladder.  `acc0` is the initial accumulator `-H`; `rb`/`sb` hold the
 `r` and `t = n - s` bits least significant first; `target` is `-ep`.
 
@@ -90,7 +119,7 @@ def jointLadder (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : P
   let r := Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
     (jointLadderBody_constantLength tables rb sb) n
   let e := jointLadderFinal tables rb sb r.1 target (n + Operations.localLength r.2)
-  (e.1, r.2 ++ e.2)
+  (e.1, jointLadderOps acc0 tables rb sb target n)
 
 /-! ## Per-step equation lemmas
 
@@ -154,7 +183,9 @@ theorem jointLadder_ops (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
               ((Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
                 (jointLadderBody_constantLength tables rb sb)).output n)
               target).operations (n + 3060) := by
-  simp only [jointLadder, Circuit.operations, Circuit.output, jointLadderFold_localLength]
+  show jointLadderOps acc0 tables rb sb target n = _
+  rw [jointLadderOps_eq]
+  simp only [Circuit.operations, Circuit.output, jointLadderFold_localLength]
 
 /-- The output of the ladder is the output of the final step. -/
 theorem jointLadder_out (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
