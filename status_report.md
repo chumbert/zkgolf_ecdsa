@@ -1,7 +1,9 @@
-# Status report — Standard P-256 ECDSA formal proof (orchestrated)
+# Status report — Standard P-256 ECDSA formal proof (orchestrated) — FINAL
 
 - T0 = `1794998126` (2026-11-18T10:35:26Z, `date -u +%s`)
-- Report time = `1795084610` (2026-11-19T10:36:50Z) → **total wall since T0 = 86,484 s ≈ 24.0 h**
+- Final report time = `1795095156` (2026-11-19T13:32:36Z) → **total wall since T0 = 97,030 s ≈ 27.0 h**
+- Subagent `deepseek-flash` now idle; all milestones complete. HEAD `ab09bcb` (`main_completeness_of_standard`, hypothesis-free). 107 commits; `StandardECDSA/` + `Tests/StandardECDSA/` ≈ 24,749 lines.
+- Real sorries in `StandardECDSA/`: **0** (grep excluding docstring prose exits 1). Build green (17,893 jobs); count `4628/4634 = 9262`; audit **220 roots**, only `propext`/`Classical.choice`/`Quot.sound`; contract/matrix scripts pass; regressions 46/46.
 - Subagent: `deepseek-flash` (config_name `deepseek-flash`), spawned once at `1794998251` with the full plan (51,106-byte task message incl. the 43,550-byte plan), then driven by 36 follow-up messages. Still running at report time.
 - Repo: `/Users/clement.humbert/PrivacyPreservingEID/FormalProving/zkgolf_ecdsa`, branch `leanstral-with-astra-planner`, HEAD `a8fc03b` (+ in-flight uncommitted work). 72 milestone commits; `StandardECDSA/` + `Tests/StandardECDSA/` ≈ 22,500 lines.
 - Sorries: `grep -rn "sorry" StandardECDSA/` → exit 1, **0 sorries**. (Pre-existing `sorry` stubs in `Challenge/Instances/ECDSA_P256_Digest/Challenge.lean` are outside the new library and untouched.)
