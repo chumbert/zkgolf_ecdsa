@@ -870,4 +870,730 @@ theorem assertLtOrderGuardedOf_causal (bound : Nat) (guard : E) (a : Nat → E) 
     OpsCausal n ((assertLtOrderGuardedOf bound guard a).operations n) :=
   ltLoopGuarded_causal a N ha guard (cst 0) (boundRunsOf bound) n hn hg (Below.cst n 0)
 
+/-! ## The phases -/
+
+theorem hint_causal (i : Nat) (n : ℕ) : OpsCausal n ((hint i).operations n) := by
+  simp only [hint]
+  exact cwOps_witnessField (FBelow.hintGet hintKey 1 ⟨0, by decide⟩ (U64Below.const _ _))
+
+theorem bitBody_causal (base stride : Nat) (i : Fin 256) (n : ℕ) :
+    OpsCausal n ((bitBody base stride i).operations n) := by
+  rw [bitBody_ops]
+  exact (cwOps_append _ _ _).mpr ⟨hint_causal _ _, assertBool_causal _ _⟩
+
+theorem bitVec_causal (base stride : Nat) (n : ℕ) :
+    OpsCausal n ((bitVec base stride).operations n) := by
+  simp only [bitVec]
+  exact cwOps_mapFinRange (fun i k _ => bitBody_causal base stride i k)
+
+theorem seedPhase_causal (inp : Var Input Fp) (n : ℕ) :
+    OpsCausal n ((seedPhase inp).operations n) := by
+  simp only [seedPhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨hint_causal 0 n, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨hint_causal 1 _, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨hint_causal 2 _, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨hint_causal 3 _, ?_⟩
+  exact assertBool_causal _ _
+
+theorem curvePhase_causal (inp : Var Input Fp) (s : Seed) (n : ℕ)
+    (hx : Below n inp.pkX) (hy : Below n inp.pkY) (hr : Below n inp.r)
+    (hov : Below n s.overflow) (hry : Below n s.ry) (hhx : Below n s.hx)
+    (hhy : Below n s.hy) :
+    OpsCausal n ((curvePhase inp s).operations n) := by
+  simp only [curvePhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨isOnCurve_causal _ _ n hx hy, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨isOnCurve_causal _ _ _
+    (Below.add (Below.mono hr (by omega)) (Below.sc _ (Below.mono hov (by omega))))
+    (Below.mono hry (by omega)), ?_⟩
+  exact isOnCurve_causal _ _ _ (Below.mono hhx (by omega)) (Below.mono hhy (by omega))
+
+theorem nonzeroPhase_causal (inp : Var Input Fp) (n : ℕ)
+    (hr : Below n inp.r) (hs : Below n inp.s) :
+    OpsCausal n ((nonzeroPhase inp).operations n) := by
+  simp only [nonzeroPhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨nonzero_causal _ _ hr, ?_⟩
+  exact nonzero_causal _ _ (Below.sub (Below.cst _ _) (Below.mono hs (by omega)))
+
+theorem bitsPhase_causal (n : ℕ) : OpsCausal n ((bitsPhase).operations n) := by
+  simp only [bitsPhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨bitVec_causal 4 3 n, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨bitVec_causal 5 3 _, ?_⟩
+  exact bitVec_causal 6 3 _
+
+theorem bindPhase_causal (inp : Var Input Fp) (b : Bits) (n : ℕ) :
+    OpsCausal n ((bindPhase inp b).operations n) := by
+  simp only [bindPhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨cwOps_assertZero _ _, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨cwOps_assertZero _ _, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨cwOps_assertZero _ _, ?_⟩
+  exact cwOps_assertZero _ _
+
+theorem cmpPhase_causal (b : Bits) (overflow : E) (n : ℕ) (hov : Below n overflow)
+    (hrb : ∀ j, Below n (b.rb.getD j (cst 0)))
+    (hsb : ∀ j, Below n (b.sb.getD j (cst 0))) :
+    OpsCausal n ((cmpPhase b overflow).operations n) := by
+  simp only [cmpPhase, Circuit.operations, List.append_assoc]
+  refine (cwOps_append _ _ _).mpr
+    ⟨assertLtOrderOf_causal nSubOne _ n hrb n (by omega), ?_⟩
+  refine (cwOps_append _ _ _).mpr
+    ⟨assertLtOrderOf_causal nSubOne _ n (fun j => hsb j) _ (by omega), ?_⟩
+  exact assertLtOrderGuardedOf_causal pSubNSubOne _ _ n (fun j => hrb j) _ (by omega)
+    (Below.mono hov (by omega))
+
+/-! ## The fixed-base phase -/
+
+theorem fixedBaseBody_causal (eb : Vector E 256) (tables : Array (Array (Fp × Fp)))
+    (ep : Pt) (i : Fin 128) (n : ℕ) (heb : ∀ k : Fin 256, Below n (eb.get k))
+    (h1 : Below n ep.1) (h2 : Below n ep.2) :
+    OpsCausal n ((fixedBaseBody eb tables ep i).operations n) := by
+  simp only [fixedBaseBody]
+  refine cwOps_bind (muxConst4W_causal _ _ _ _ (heb _) (heb _)) ?_
+  simp only [operations_localLength, muxConst4W_localLength]
+  exact affAdd_causal ep _ _ (Below.mono h1 (by omega)) (Below.mono h2 (by omega))
+    (muxConst4W_output_below _ _ _ _ (heb _) (heb _)).1
+    (muxConst4W_output_below _ _ _ _ (heb _) (heb _)).2
+
+theorem fixedBaseBody_output_below (eb : Vector E 256) (tables : Array (Array (Fp × Fp)))
+    (ep : Pt) (i : Fin 128) (n : ℕ) (heb : ∀ k : Fin 256, Below n (eb.get k))
+    (h1 : Below n ep.1) (h2 : Below n ep.2) :
+    Below (n + 5) ((fixedBaseBody eb tables ep i n).1).1 ∧
+      Below (n + 5) ((fixedBaseBody eb tables ep i n).1).2 := by
+  have hm := muxConst4W_output_below (eb.get ⟨2 * i.val, by omega⟩)
+    (eb.get ⟨2 * i.val + 1, by omega⟩) (tables.getD i.val #[]) n (heb _) (heb _)
+  have ha := affAdd_output_below ep _ (n + 1) (Below.mono h1 (by omega))
+    (Below.mono h2 (by omega)) hm.1 hm.2
+  rw [show (fixedBaseBody eb tables ep i n).1 = (fixedBaseBody eb tables ep i).output n from rfl,
+    fixedBaseBody, Circuit.bind_output_eq, muxConst4W_localLength]
+  exact ha
+
+theorem fixedBaseBody_output_eq (eb : Vector E 256) (tables : Array (Array (Fp × Fp)))
+    (ep : Pt) (i : Fin 128) (n : ℕ) :
+    (fixedBaseBody eb tables ep i n).1
+      = (Expression.var (F := Fp) ⟨n + 3⟩, Expression.var (F := Fp) ⟨n + 4⟩) := rfl
+
+theorem fixedBaseBody_constantOutput (eb : Vector E 256) (tables : Array (Array (Fp × Fp))) :
+    Circuit.ConstantOutput (fun (t : Pt × Fin 128) => fixedBaseBody eb tables t.1 t.2) := by
+  intro x n
+  simp only [Circuit.output, fixedBaseBody_output_eq]
+
+/-! ## The fold accumulator invariant -/
+
+theorem foldlAcc_pt_below {m : ℕ} [NeZero m] {body : Pt → Fin m → Circuit Fp Pt}
+    {constant : Circuit.ConstantLength fun (t : Pt × Fin m) => body t.1 t.2}
+    {init : Pt} {n L : ℕ}
+    (hL : ∀ (s : Pt) (i : Fin m) (k : ℕ), (body s i).localLength k = L)
+    (hconst : Circuit.ConstantOutput fun (t : Pt × Fin m) => body t.1 t.2)
+    (hinit : Below n init.1 ∧ Below n init.2)
+    (hout : ∀ (s : Pt) (i : Fin m) (k : ℕ),
+      Below (k + L) ((body s i k).1).1 ∧ Below (k + L) ((body s i k).1).2) :
+    ∀ (j : ℕ) (hj : j < m),
+      Below (n + j * L) (FoldlM.foldlAcc n (Vector.finRange m) body init ⟨j, hj⟩).1 ∧
+      Below (n + j * L) (FoldlM.foldlAcc n (Vector.finRange m) body init ⟨j, hj⟩).2 := by
+  intro j hj
+  rcases j with _ | j
+  · simp only [FoldlM.foldlAcc, Fin.foldl_zero, Nat.zero_mul, Nat.add_zero]
+    exact hinit
+  · rw [FoldlM.foldlAcc_const_succ (xs := Vector.finRange m) constant hconst j (by omega)]
+    simp only [Vector.getElem_finRange]
+    rw [hL default default 0]
+    have hres := hout default ⟨j, by omega⟩ (n + j * L)
+    have harith : n + j * L + L = n + (j + 1) * L := by rw [Nat.succ_mul]; omega
+    rw [harith] at hres
+    exact hres
+
+theorem foldlRange_output_below {m : ℕ} [NeZero m] {body : Pt → Fin m → Circuit Fp Pt}
+    {constant : Circuit.ConstantLength fun (t : Pt × Fin m) => body t.1 t.2}
+    {init : Pt} {n L : ℕ}
+    (hL : ∀ (s : Pt) (i : Fin m) (k : ℕ), (body s i).localLength k = L)
+    (hconst : Circuit.ConstantOutput fun (t : Pt × Fin m) => body t.1 t.2)
+    (hinit : Below n init.1 ∧ Below n init.2)
+    (hout : ∀ (s : Pt) (i : Fin m) (k : ℕ),
+      Below (k + L) ((body s i k).1).1 ∧ Below (k + L) ((body s i k).1).2) :
+    Below (n + m * L) ((Circuit.foldlRange m init body constant).output n).1 ∧
+      Below (n + m * L) ((Circuit.foldlRange m init body constant).output n).2 := by
+  obtain ⟨m', rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by have := NeZero.ne m; omega⟩
+  rw [Circuit.foldlRange.output_eq, Fin.foldl_succ_last]
+  rw [hL default (Fin.last m') 0]
+  have hres := hout (Fin.foldl m' (fun x1 x2 => (body x1 x2.castSucc).output
+      (n + ↑x2.castSucc * (body default x2.castSucc).localLength)) init) (Fin.last m') (n + m' * L)
+  have harith : n + m' * L + L = n + (m' + 1) * L := by rw [Nat.succ_mul]; omega
+  rw [harith] at hres
+  exact hres
+
+theorem cwOps_foldlRange_pt {m : ℕ} [NeZero m] {body : Pt → Fin m → Circuit Fp Pt}
+    {constant : Circuit.ConstantLength fun (t : Pt × Fin m) => body t.1 t.2}
+    {init : Pt} {n L : ℕ}
+    (hL : ∀ (s : Pt) (i : Fin m) (k : ℕ), (body s i).localLength k = L)
+    (hconst : Circuit.ConstantOutput fun (t : Pt × Fin m) => body t.1 t.2)
+    (hinit : Below n init.1 ∧ Below n init.2)
+    (hout : ∀ (s : Pt) (i : Fin m) (k : ℕ),
+      Below (k + L) ((body s i k).1).1 ∧ Below (k + L) ((body s i k).1).2)
+    (hstep : ∀ (s : Pt) (i : Fin m) (k : ℕ), Below k s.1 → Below k s.2 →
+      OpsCausal k ((body s i).operations k)) :
+    OpsCausal n ((Circuit.foldlRange m init body constant).operations n) := by
+  rw [Circuit.foldlRange.operations_eq]
+  refine cwOps_flatten_ofFn (L := L) _ (fun i => ?_) (fun i => ?_)
+  · simp only [operations_localLength]
+    exact hL _ i _
+  · rw [hL default i 0]
+    have hacc := foldlAcc_pt_below (constant := constant) hL hconst hinit hout i.val i.isLt
+    exact hstep _ i _ hacc.1 hacc.2
+
+/-- The 128-window fold of the fixed-base phase, sealed so that no `OpsCausal`
+unification has to `whnf` the fold. -/
+@[irreducible] def fixedBaseFoldOps (h : Pt) (eb : Vector E 256) (n : ℕ) : Operations Fp :=
+  (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).operations (n + 4)
+
+theorem fixedBaseFoldOps_eq (h : Pt) (eb : Vector E 256) (n : ℕ) :
+    fixedBaseFoldOps h eb n
+      = (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+        (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+        (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).operations
+        (n + 4) := by unfold fixedBaseFoldOps; rfl
+
+theorem fixedBaseFold_causal (h : Pt) (eb : Vector E 256) (n : ℕ)
+    (h1 : Below n h.1) (h2 : Below n h.2) (heb : ∀ k : Fin 256, Below n (eb.get k)) :
+    OpsCausal (n + 4) (fixedBaseFoldOps h eb n) := by
+  rw [fixedBaseFoldOps_eq, Circuit.foldlRange.operations_eq]
+  refine cwOps_flatten_ofFn (L := 5) _ (fun i => ?_) (fun i => ?_)
+  · simp only [operations_localLength]
+    exact (fixedBaseBody_constantLength eb
+      StandardECDSA.Math.FixedTables.fixedTables).localLength_eq (_, i) _
+  · rw [show (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables default i).localLength
+        = 5 from (fixedBaseBody_constantLength eb
+          StandardECDSA.Math.FixedTables.fixedTables).localLength_eq (default, i) 0]
+    have hacc := foldlAcc_pt_below (constant := fixedBaseBody_constantLength eb
+        StandardECDSA.Math.FixedTables.fixedTables) (L := 5)
+      (fun s i k => (fixedBaseBody_constantLength eb
+        StandardECDSA.Math.FixedTables.fixedTables).localLength_eq (s, i) k)
+      (fun x k => fixedBaseBody_constantOutput eb StandardECDSA.Math.FixedTables.fixedTables x k)
+      (affAdd_output_below h (cst shiftX, cst (-shiftY)) n h1 h2
+        (Below.cst n shiftX) (Below.cst n (-shiftY)))
+      (fun s i k => by
+        rw [fixedBaseBody_output_eq]
+        exact ⟨Below.var (by omega), Below.var (by omega)⟩)
+      i.val i.isLt
+    exact fixedBaseBody_causal eb StandardECDSA.Math.FixedTables.fixedTables _ i _
+      (fun j => Below.mono (heb j) (by omega)) hacc.1 hacc.2
+
+theorem fixedBase_causal (h : Pt) (eb : Vector E 256) (n : ℕ)
+    (h1 : Below n h.1) (h2 : Below n h.2) (heb : ∀ k : Fin 256, Below n (eb.get k)) :
+    OpsCausal n ((fixedBase h eb).operations n) := by
+  rw [fixedBase_ops, ← fixedBaseFoldOps_eq]
+  exact (cwOps_append _ _ _).mpr
+    ⟨affAdd_causal _ _ n h1 h2 (Below.cst n shiftX) (Below.cst n (-shiftY)),
+      fixedBaseFold_causal h eb n h1 h2 heb⟩
+
+/-! ## Table and bit-vector `Below` facts -/
+
+/-- Both coordinates of a point are below the offset. -/
+def PtBelow (n : ℕ) (p : Pt) : Prop := Below n p.1 ∧ Below n p.2
+
+/-- All eight table entries are below the offset. -/
+def TablesBelow (n : ℕ) (t : Tables) : Prop :=
+  PtBelow n t.p0 ∧ PtBelow n t.p1 ∧ PtBelow n t.p2 ∧ PtBelow n t.p3 ∧
+  PtBelow n t.m0 ∧ PtBelow n t.m1 ∧ PtBelow n t.m2 ∧ PtBelow n t.m3
+
+theorem TablesBelow.x0 {n : ℕ} {t : Tables} (h : TablesBelow n t) (j : ℕ) :
+    PtBelow n (t.x0 j) := by
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  unfold Tables.x0
+  split <;> assumption
+
+theorem TablesBelow.x1 {n : ℕ} {t : Tables} (h : TablesBelow n t) (j : ℕ) :
+    PtBelow n (t.x1 j) := by
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  unfold Tables.x1
+  split <;> assumption
+
+theorem TablesBelow.x2 {n : ℕ} {t : Tables} (h : TablesBelow n t) (j : ℕ) :
+    PtBelow n (t.x2 j) := by
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  unfold Tables.x2
+  split <;> assumption
+
+theorem TablesBelow.x3 {n : ℕ} {t : Tables} (h : TablesBelow n t) (j : ℕ) :
+    PtBelow n (t.x3 j) := by
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  unfold Tables.x3
+  split <;> assumption
+
+theorem PtBelow.mono {n m : ℕ} {p : Pt} (h : PtBelow n p) (hnm : n ≤ m) : PtBelow m p :=
+  ⟨Below.mono h.1 hnm, Below.mono h.2 hnm⟩
+
+theorem TablesBelow.mono {n m : ℕ} {t : Tables} (h : TablesBelow n t) (hnm : n ≤ m) :
+    TablesBelow m t := by
+  obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := h
+  exact ⟨h0.mono hnm, h1.mono hnm, h2.mono hnm, h3.mono hnm, h4.mono hnm, h5.mono hnm,
+    h6.mono hnm, h7.mono hnm⟩
+
+theorem bitVec_output_eq (base stride : Nat) (n : ℕ) (k : Fin 256) :
+    (Circuit.output (bitVec base stride) n).get k = Expression.var (F := Fp) ⟨n + k.val⟩ := by
+  rw [bitVec, Circuit.mapFinRange.output_eq]
+  simp only [Vector.getElem_mapFinRange, Vector.get_eq_getElem]
+  have hL : (bitBody base stride 0).localLength = 1 :=
+    (bitBody_constantLength base stride).localLength_eq 0 0
+  rw [hL, Nat.mul_one]
+  simp only [bitBody, hint, output_bind, output_pure, output_witnessField]
+
+theorem bitVec_output_below (base stride : Nat) (n : ℕ) (k : Fin 256) :
+    Below (n + 256) ((Circuit.output (bitVec base stride) n).get k) := by
+  rw [bitVec_output_eq]
+  exact Below.var (by omega)
+
+theorem getD_below {N : ℕ} (v : Vector E 256) (hv : ∀ k : Fin 256, Below N (v.get k))
+    (j : Nat) : Below N (v.getD j (cst 0)) := by
+  rw [Vector.getD, Array.getD]
+  split
+  · next h => exact hv ⟨j, by simpa using h⟩
+  · exact Below.cst N 0
+
+/-! ## The shifted tables -/
+
+theorem shiftedTables_causal (h q r : Pt) (n : ℕ) (hx : deg h.1 = 1)
+    (h1 : Below n h.1) (h2 : Below n h.2) (h3 : Below n q.1) (h4 : Below n q.2)
+    (h5 : Below n r.1) (h6 : Below n r.2) :
+    OpsCausal n ((shiftedTables h q r).operations n) := by
+  rw [← shiftedTables_snd h q r n]
+  simp only [shiftedTables]
+  have hd := affDouble_output_below h n hx h1 h2
+  have ha := affAdd_output_below _ _ (n + 4) (Below.mono hd.1 (by omega))
+    (Below.mono hd.2 (by omega)) (Below.mono h1 (by omega)) (Below.mono h2 (by omega))
+  have hb := affAdd_output_below _ _ (n + 8) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h3 (by omega)) (Below.mono h4 (by omega))
+  have hc := affAdd_output_below _ _ (n + 12) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  have hd2 := affAdd_output_below _ _ (n + 16) (Below.mono hb.1 (by omega))
+    (Below.mono hb.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  have hn20 : Below (n + 20) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).1 :=
+    Below.mono ha.1 (by omega)
+  have hn20b : Below (n + 20) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).2 :=
+    Below.mono (Below.neg ha.2) (by omega)
+  have hn24 : Below (n + 24) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).1 :=
+    Below.mono ha.1 (by omega)
+  have hn24b : Below (n + 24) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).2 :=
+    Below.mono (Below.neg ha.2) (by omega)
+  have he := affAdd_output_below _ _ (n + 20) hn20 hn20b
+    (Below.mono h3 (by omega)) (Below.mono h4 (by omega))
+  have hf := affAdd_output_below _ _ (n + 24) hn24 hn24b
+    (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  refine cwOps_bind (affDouble_causal h n h1 h2) ?_
+  simp only [operations_localLength, affDouble_localLength hx]
+  refine cwOps_bind (affAdd_causal _ _ (n + 4) (Below.mono hd.1 (by omega))
+    (Below.mono hd.2 (by omega)) (Below.mono h1 (by omega)) (Below.mono h2 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 8) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h3 (by omega)) (Below.mono h4 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 12) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 16) (Below.mono hb.1 (by omega))
+    (Below.mono hb.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 20) hn20 hn20b
+    (Below.mono h3 (by omega)) (Below.mono h4 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 24) hn24 hn24b
+    (Below.mono h5 (by omega)) (Below.mono h6 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  refine cwOps_bind (affAdd_causal _ _ (n + 28) (Below.mono he.1 (by omega))
+    (Below.mono he.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))) ?_
+  simp only [operations_localLength, affAdd_localLength]
+  exact cwOps_pure _ _
+
+theorem shiftedTables_output_eq (h q r : Pt) (n : ℕ) (hx : deg h.1 = 1) :
+    (shiftedTables h q r n).1
+      = { p0 := (affAdd (affDouble h n).1 h (n + 4)).1
+          p1 := (affAdd (affAdd (affDouble h n).1 h (n + 4)).1 q (n + 8)).1
+          p2 := (affAdd (affAdd (affDouble h n).1 h (n + 4)).1 r (n + 12)).1
+          p3 := (affAdd (affAdd (affAdd (affDouble h n).1 h (n + 4)).1 q (n + 8)).1 r (n + 16)).1
+          m0 := negPt (affAdd (affDouble h n).1 h (n + 4)).1
+          m1 := (affAdd (negPt (affAdd (affDouble h n).1 h (n + 4)).1) q (n + 20)).1
+          m2 := (affAdd (negPt (affAdd (affDouble h n).1 h (n + 4)).1) r (n + 24)).1
+          m3 := (affAdd (affAdd (negPt (affAdd (affDouble h n).1 h (n + 4)).1) q (n + 20)).1 r (n + 28)).1 } := by
+  simp only [shiftedTables, Circuit.bind_output_eq, Circuit.pure_output_eq,
+    affDouble_localLength hx, affAdd_localLength]
+
+theorem shiftedTables_output_below (h q r : Pt) (n : ℕ) (hx : deg h.1 = 1)
+    (h1 : Below n h.1) (h2 : Below n h.2) (h3 : Below n q.1) (h4 : Below n q.2)
+    (h5 : Below n r.1) (h6 : Below n r.2) :
+    TablesBelow (n + 32) (shiftedTables h q r n).1 := by
+  have hd := affDouble_output_below h n hx h1 h2
+  have ha := affAdd_output_below _ _ (n + 4) (Below.mono hd.1 (by omega))
+    (Below.mono hd.2 (by omega)) (Below.mono h1 (by omega)) (Below.mono h2 (by omega))
+  have hb := affAdd_output_below _ _ (n + 8) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h3 (by omega)) (Below.mono h4 (by omega))
+  have hc := affAdd_output_below _ _ (n + 12) (Below.mono ha.1 (by omega))
+    (Below.mono ha.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  have hd2 := affAdd_output_below _ _ (n + 16) (Below.mono hb.1 (by omega))
+    (Below.mono hb.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  have hn20 : Below (n + 20) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).1 :=
+    Below.mono ha.1 (by omega)
+  have hn20b : Below (n + 20) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).2 :=
+    Below.mono (Below.neg ha.2) (by omega)
+  have hn24 : Below (n + 24) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).1 :=
+    Below.mono ha.1 (by omega)
+  have hn24b : Below (n + 24) (negPt (affAdd (affDouble h n).1 h (n + 4)).1).2 :=
+    Below.mono (Below.neg ha.2) (by omega)
+  have he := affAdd_output_below _ _ (n + 20) hn20 hn20b
+    (Below.mono h3 (by omega)) (Below.mono h4 (by omega))
+  have hf := affAdd_output_below _ _ (n + 24) hn24 hn24b
+    (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  have hg := affAdd_output_below _ _ (n + 28) (Below.mono he.1 (by omega))
+    (Below.mono he.2 (by omega)) (Below.mono h5 (by omega)) (Below.mono h6 (by omega))
+  rw [shiftedTables_output_eq h q r n hx]
+  simp only [TablesBelow, PtBelow]
+  refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩⟩
+  · exact Below.mono ha.1 (by omega)
+  · exact Below.mono ha.2 (by omega)
+  · exact Below.mono hb.1 (by omega)
+  · exact Below.mono hb.2 (by omega)
+  · exact Below.mono hc.1 (by omega)
+  · exact Below.mono hc.2 (by omega)
+  · exact Below.mono hd2.1 (by omega)
+  · exact Below.mono hd2.2 (by omega)
+  · exact Below.mono hn20 (by omega)
+  · exact Below.mono hn20b (by omega)
+  · exact Below.mono he.1 (by omega)
+  · exact Below.mono he.2 (by omega)
+  · exact Below.mono hf.1 (by omega)
+  · exact Below.mono hf.2 (by omega)
+  · exact Below.mono hg.1 (by omega)
+  · exact Below.mono hg.2 (by omega)
+
+
+/-! ## The joint ladder -/
+
+theorem jointLadderBody_causal (tables : Tables) (rb sb : Vector E 256) (acc : Pt)
+    (j : Fin 255) (n : ℕ)
+    (hb0 : Below n (rb.get ⟨255 - j.val, by omega⟩))
+    (hb1 : Below n (sb.get ⟨255 - j.val, by omega⟩))
+    (hacc : PtBelow n acc) (htab : TablesBelow n tables) :
+    OpsCausal n ((jointLadderBody tables rb sb acc j).operations n) := by
+  rw [jointLadderBody_eq_bind]
+  refine cwOps_bind' (L := 6) ?_ (mux4W_causal _ _ _ _ _ _ n hb0 hb1
+    (htab.x0 j.val).1 (htab.x0 j.val).2 (htab.x1 j.val).1 (htab.x1 j.val).2
+    (htab.x2 j.val).1 (htab.x2 j.val).2 (htab.x3 j.val).1 (htab.x3 j.val).2) ?_
+  · rw [operations_localLength, mux4W_localLength]
+  · exact elm_causal acc _ _ (Below.mono hacc.1 (by omega)) (Below.mono hacc.2 (by omega))
+      (mux4W_output_below _ _ _ _ _ _ n hb0 hb1
+        (htab.x0 j.val).1 (htab.x0 j.val).2 (htab.x1 j.val).1 (htab.x1 j.val).2
+        (htab.x2 j.val).1 (htab.x2 j.val).2 (htab.x3 j.val).1 (htab.x3 j.val).2).1
+      (mux4W_output_below _ _ _ _ _ _ n hb0 hb1
+        (htab.x0 j.val).1 (htab.x0 j.val).2 (htab.x1 j.val).1 (htab.x1 j.val).2
+        (htab.x2 j.val).1 (htab.x2 j.val).2 (htab.x3 j.val).1 (htab.x3 j.val).2).2
+
+theorem jointLadderBody_output_eq (tables : Tables) (rb sb : Vector E 256) (acc : Pt)
+    (j : Fin 255) (n : ℕ) :
+    (jointLadderBody tables rb sb acc j n).1
+      = (Expression.var (F := Fp) ⟨n + 10⟩, Expression.var (F := Fp) ⟨n + 11⟩) := by
+  simp only [jointLadderBody, Circuit.output, mux4W_localLength, elm_output_eq]
+
+theorem jointLadderBody_output_below (tables : Tables) (rb sb : Vector E 256) (acc : Pt)
+    (j : Fin 255) (n : ℕ) :
+    Below (n + 12) ((jointLadderBody tables rb sb acc j n).1).1 ∧
+      Below (n + 12) ((jointLadderBody tables rb sb acc j n).1).2 := by
+  rw [jointLadderBody_output_eq]
+  exact ⟨Below.var (by omega), Below.var (by omega)⟩
+
+theorem jointLadderBody_constantOutput (tables : Tables) (rb sb : Vector E 256) :
+    Circuit.ConstantOutput (fun (t : Pt × Fin 255) => jointLadderBody tables rb sb t.1 t.2) := by
+  intro x n
+  simp only [Circuit.output, jointLadderBody_output_eq]
+
+theorem jointLadderFinal_causal (tables : Tables) (rb sb : Vector E 256) (acc target : Pt)
+    (n : ℕ) (hb0 : Below n (rb.get ⟨0, by omega⟩)) (hb1 : Below n (sb.get ⟨0, by omega⟩))
+    (hacc1 : Below n acc.1) (hacc2 : Below n acc.2)
+    (htab : TablesBelow n tables) (htgt : PtBelow n target) :
+    OpsCausal n ((jointLadderFinal tables rb sb acc target).operations n) := by
+  rw [jointLadderFinal_ops]
+  refine (cwOps_append _ _ _).mpr ⟨?_, ?_⟩
+  · exact mux4W_causal _ _ _ _ _ _ n hb0 hb1
+      (htab.x0 255).1 (htab.x0 255).2 (htab.x1 255).1 (htab.x1 255).2
+      (htab.x2 255).1 (htab.x2 255).2 (htab.x3 255).1 (htab.x3 255).2
+  · have hL : ((mux4W (rb.get ⟨0, by omega⟩) (sb.get ⟨0, by omega⟩)
+        (tables.x0 255) (tables.x1 255) (tables.x2 255) (tables.x3 255)).operations
+        n).localLength = 6 := by
+      rw [operations_localLength, mux4W_localLength]
+    rw [← hL]
+    exact elmTo_causal acc _ target (n + 6) (Below.mono hacc1 (by omega))
+      (Below.mono hacc2 (by omega))
+      (mux4W_output_below _ _ _ _ _ _ n hb0 hb1
+        (htab.x0 255).1 (htab.x0 255).2 (htab.x1 255).1 (htab.x1 255).2
+        (htab.x2 255).1 (htab.x2 255).2 (htab.x3 255).1 (htab.x3 255).2).1
+      (mux4W_output_below _ _ _ _ _ _ n hb0 hb1
+        (htab.x0 255).1 (htab.x0 255).2 (htab.x1 255).1 (htab.x1 255).2
+        (htab.x2 255).1 (htab.x2 255).2 (htab.x3 255).1 (htab.x3 255).2).2
+      (Below.mono htgt.1 (by omega)) (Below.mono htgt.2 (by omega))
+
+/-- The 255-step fold of the joint ladder, sealed so that no `OpsCausal`
+unification has to `whnf` the fold. -/
+@[irreducible] def jointLadderFoldOps (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256)
+    (n : ℕ) : Operations Fp :=
+  (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+    (jointLadderBody_constantLength tables rb sb)).operations n
+
+theorem jointLadderFoldOps_eq (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : ℕ) :
+    jointLadderFoldOps acc0 tables rb sb n
+      = (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+        (jointLadderBody_constantLength tables rb sb)).operations n := by
+  unfold jointLadderFoldOps; rfl
+
+theorem jointLadderFold_causal (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (n : ℕ)
+    (hacc : PtBelow n acc0) (htab : TablesBelow n tables)
+    (hrb : ∀ k : Fin 256, Below n (rb.get k)) (hsb : ∀ k : Fin 256, Below n (sb.get k)) :
+    OpsCausal n (jointLadderFoldOps acc0 tables rb sb n) := by
+  rw [jointLadderFoldOps_eq, Circuit.foldlRange.operations_eq]
+  refine cwOps_flatten_ofFn (L := 12) _ (fun i => ?_) (fun i => ?_)
+  · simp only [operations_localLength]
+    exact (jointLadderBody_constantLength tables rb sb).localLength_eq (_, i) _
+  · rw [show (jointLadderBody tables rb sb default i).localLength = 12 from
+      (jointLadderBody_constantLength tables rb sb).localLength_eq (default, i) 0]
+    have hacc' := foldlAcc_pt_below (constant := jointLadderBody_constantLength tables rb sb)
+      (L := 12)
+      (fun s i k => (jointLadderBody_constantLength tables rb sb).localLength_eq (s, i) k)
+      (fun x k => jointLadderBody_constantOutput tables rb sb x k) hacc
+      (fun s i k => jointLadderBody_output_below tables rb sb s i k) i.val i.isLt
+    exact jointLadderBody_causal tables rb sb _ i _
+      (Below.mono (hrb _) (by omega)) (Below.mono (hsb _) (by omega)) hacc'
+      (TablesBelow.mono htab (by omega))
+
+/-- The operations of the ladder, stated with the sealed fold so that no
+`OpsCausal` goal ever mentions the unfolded 255-step fold. -/
+theorem jointLadder_ops' (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt)
+    (n : Nat) :
+    (jointLadder acc0 tables rb sb target).operations n
+      = jointLadderFoldOps acc0 tables rb sb n
+        ++ (jointLadderFinal tables rb sb
+              ((Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+                (jointLadderBody_constantLength tables rb sb)).output n)
+              target).operations (n + 3060) := by
+  rw [jointLadder_ops, ← jointLadderFoldOps_eq]
+
+theorem jointLadder_causal (acc0 : Pt) (tables : Tables) (rb sb : Vector E 256) (target : Pt)
+    (n : ℕ) (hacc : PtBelow n acc0) (htab : TablesBelow n tables)
+    (hrb : ∀ k : Fin 256, Below n (rb.get k)) (hsb : ∀ k : Fin 256, Below n (sb.get k))
+    (htgt : PtBelow n target) :
+    OpsCausal n ((jointLadder acc0 tables rb sb target).operations n) := by
+  have hL : (jointLadderFoldOps acc0 tables rb sb n).localLength = 3060 := by
+    rw [jointLadderFoldOps_eq, operations_localLength, jointLadderFold_localLength]
+  have hout := foldlRange_output_below (body := jointLadderBody tables rb sb)
+    (constant := jointLadderBody_constantLength tables rb sb) (init := acc0) (n := n) (L := 12)
+    (fun s i k => (jointLadderBody_constantLength tables rb sb).localLength_eq (s, i) k)
+    (fun x k => jointLadderBody_constantOutput tables rb sb x k) hacc
+    (fun s i k => jointLadderBody_output_below tables rb sb s i k)
+  rw [show (255 : ℕ) * 12 = 3060 from by norm_num] at hout
+  rw [jointLadder_ops']
+  generalize hacc0 : (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+    (jointLadderBody_constantLength tables rb sb)).output n = acc at hout ⊢
+  have h2 : OpsCausal (n + 3060)
+      ((jointLadderFinal tables rb sb acc target).operations (n + 3060)) :=
+    jointLadderFinal_causal tables rb sb acc target (n + 3060)
+      (Below.mono (hrb ⟨0, by omega⟩) (by omega))
+      (Below.mono (hsb ⟨0, by omega⟩) (by omega))
+      hout.1 hout.2 (TablesBelow.mono htab (by omega)) (PtBelow.mono htgt (by omega))
+  refine (cwOps_append _ _ _).mpr
+    ⟨jointLadderFold_causal acc0 tables rb sb n hacc htab hrb hsb, ?_⟩
+  rw [hL]
+  exact h2
+
+/-! ## Phase-level causality for `main` -/
+
+theorem hint_output_eq (i : Nat) (n : Nat) :
+    (hint i).output n = Expression.var (F := Fp) ⟨n⟩ := by
+  simp only [hint, witnessField, Circuit.output]
+
+theorem seedPhase_localLength (inp : Var Input Fp) (n : Nat) :
+    (seedPhase inp).localLength n = 4 := by
+  simp only [seedPhase, Circuit.localLength, Operations.append_localLength,
+    Operations.localLength, hint, witnessField]
+  rfl
+
+theorem seedPhase_ry_eq (inp : Var Input Fp) (n : Nat) :
+    (seedPhase inp n).1.ry = Expression.var (F := Fp) ⟨n⟩ := by
+  rw [show (seedPhase inp n).1 = (seedPhase inp).output n from rfl, seedPhase_out]
+  simp only [hint_output_eq]
+
+theorem seedPhase_hx_eq (inp : Var Input Fp) (n : Nat) :
+    (seedPhase inp n).1.hx = Expression.var (F := Fp) ⟨n + 1⟩ := by
+  rw [show (seedPhase inp n).1 = (seedPhase inp).output n from rfl, seedPhase_out]
+  simp only [hint_output_eq]
+
+theorem seedPhase_hy_eq (inp : Var Input Fp) (n : Nat) :
+    (seedPhase inp n).1.hy = Expression.var (F := Fp) ⟨n + 2⟩ := by
+  rw [show (seedPhase inp n).1 = (seedPhase inp).output n from rfl, seedPhase_out]
+  simp only [hint_output_eq]
+
+theorem seedPhase_overflow_eq (inp : Var Input Fp) (n : Nat) :
+    (seedPhase inp n).1.overflow = Expression.var (F := Fp) ⟨n + 3⟩ := by
+  rw [show (seedPhase inp n).1 = (seedPhase inp).output n from rfl, seedPhase_out]
+  simp only [hint_output_eq]
+
+theorem seedPhase_hx_deg (inp : Var Input Fp) (n : Nat) : deg (seedPhase inp n).1.hx = 1 := by
+  rw [seedPhase_hx_eq]
+  rfl
+
+theorem bitsPhase_localLength (n : Nat) : (bitsPhase).localLength n = 768 := by
+  simp only [bitsPhase, Circuit.localLength, Operations.append_localLength,
+    Operations.localLength, bitVec_localLength]
+
+theorem bitsPhase_eb_below (n : Nat) (k : Fin 256) :
+    Below (n + 768) ((bitsPhase n).1.eb.get k) := by
+  rw [show (bitsPhase n).1 = (bitsPhase).output n from rfl, bitsPhase_out]
+  simp only [bitVec_output_eq]
+  exact Below.var (by omega)
+
+theorem bitsPhase_rb_below (n : Nat) (k : Fin 256) :
+    Below (n + 768) ((bitsPhase n).1.rb.get k) := by
+  rw [show (bitsPhase n).1 = (bitsPhase).output n from rfl, bitsPhase_out]
+  simp only [bitVec_output_eq]
+  exact Below.var (by omega)
+
+theorem bitsPhase_sb_below (n : Nat) (k : Fin 256) :
+    Below (n + 768) ((bitsPhase n).1.sb.get k) := by
+  rw [show (bitsPhase n).1 = (bitsPhase).output n from rfl, bitsPhase_out]
+  simp only [bitVec_output_eq]
+  exact Below.var (by omega)
+
+theorem fixedBase_localLength (h : Pt) (eb : Vector E 256) (n : Nat) :
+    (fixedBase h eb).localLength n = 644 := by
+  simp only [fixedBase, Circuit.localLength, Operations.append_localLength,
+    Operations.localLength, affAdd_localLength]
+  show 4 + (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).localLength (n + 4) = 644
+  rw [Circuit.foldlRange.localLength_eq, dif_pos (by norm_num : (128 : Nat) > 0)]
+  rw [(fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables).localLength_eq (default, ⟨0, by norm_num⟩) 0]
+  rfl
+
+theorem shiftedTables_localLength (h q r : Pt) (n : Nat) (hx : deg h.1 = 1) :
+    (shiftedTables h q r).localLength n = 32 := by
+  simp only [shiftedTables, Circuit.localLength, bind_snd, Operations.append_localLength,
+    Operations.localLength, affDouble_localLength hx, affAdd_localLength,
+    Circuit.pure_localLength_eq]
+
+
+theorem seedPhase_localLength' (inp : Var Input Fp) (n : Nat) :
+    Operations.localLength (seedPhase inp n).2 = 4 := seedPhase_localLength inp n
+
+theorem bitsPhase_localLength' (n : Nat) :
+    Operations.localLength (bitsPhase n).2 = 768 := bitsPhase_localLength n
+
+theorem fixedBase_localLength' (h : Pt) (eb : Vector E 256) (n : Nat) :
+    Operations.localLength (fixedBase h eb n).2 = 644 := fixedBase_localLength h eb n
+
+theorem shiftedTables_localLength' (h q r : Pt) (n : Nat) (hx : deg h.1 = 1) :
+    Operations.localLength (shiftedTables h q r n).2 = 32 :=
+  shiftedTables_localLength h q r n hx
+
+theorem fixedBase_output_below (h : Pt) (eb : Vector E 256) (n : Nat)
+    (h1 : Below n h.1) (h2 : Below n h.2) (heb : ∀ k : Fin 256, Below n (eb.get k)) :
+    Below (n + 644) ((fixedBase h eb n).1).1 ∧ Below (n + 644) ((fixedBase h eb n).1).2 := by
+  rw [show (fixedBase h eb n).1 = (fixedBase h eb).output n from rfl, fixedBase_out]
+  have hout := foldlRange_output_below
+    (body := fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (constant := fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)
+    (init := (affAdd h (cst shiftX, cst (-shiftY))).output n) (n := n + 4) (L := 5)
+    (fun s i k => (fixedBaseBody_constantLength eb
+      StandardECDSA.Math.FixedTables.fixedTables).localLength_eq (s, i) k)
+    (fun x k => fixedBaseBody_constantOutput eb
+      StandardECDSA.Math.FixedTables.fixedTables x k)
+    (affAdd_output_below h (cst shiftX, cst (-shiftY)) n h1 h2
+      (Below.cst n shiftX) (Below.cst n (-shiftY)))
+    (fun s i k => by
+      rw [fixedBaseBody_output_eq]
+      exact ⟨Below.var (by omega), Below.var (by omega)⟩)
+  rw [show (128 : ℕ) * 5 = 640 from by norm_num] at hout
+  rw [show n + 4 + 640 = n + 644 from by omega] at hout
+  exact hout
+
+theorem main_causal (inp : Var Input Fp) (n : ℕ)
+    (hpx : Below n inp.pkX) (hpy : Below n inp.pkY)
+    (hlo : Below n inp.digestLo) (hhi : Below n inp.digestHi)
+    (hr : Below n inp.r) (hs : Below n inp.s) :
+    OpsCausal n ((main inp).operations n) := by
+  have ho1 : off1 inp n = n + 4 := by
+    show n + Operations.localLength (seedPhase inp n).2 = n + 4
+    rw [seedPhase_localLength' inp n]
+  have ho4 : off4 inp n = off3 inp n + 768 := by
+    show off3 inp n + Operations.localLength (bitsPhase (off3 inp n)).2 = off3 inp n + 768
+    rw [bitsPhase_localLength']
+  have ho7 : off7 inp n = off6 inp n + 644 := by
+    show off6 inp n + Operations.localLength
+      (fixedBase ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+        (bitsPhase (off3 inp n)).1.eb (off6 inp n)).2 = off6 inp n + 644
+    rw [fixedBase_localLength']
+  have ho8 : off8 inp n = off7 inp n + 32 := by
+    show off7 inp n + Operations.localLength
+      (shiftedTables ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy) (inp.pkX, inp.pkY)
+        (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+        (off7 inp n)).2 = off7 inp n + 32
+    rw [shiftedTables_localLength' _ _ _ _ (seedPhase_hx_deg inp n)]
+  have h01 : n ≤ off1 inp n := Nat.le_add_right n _
+  have h12 : off1 inp n ≤ off2 inp n := Nat.le_add_right _ _
+  have h23 : off2 inp n ≤ off3 inp n := Nat.le_add_right _ _
+  have h34 : off3 inp n ≤ off4 inp n := Nat.le_add_right _ _
+  have h45 : off4 inp n ≤ off5 inp n := Nat.le_add_right _ _
+  have h56 : off5 inp n ≤ off6 inp n := Nat.le_add_right _ _
+  have h67 : off6 inp n ≤ off7 inp n := Nat.le_add_right _ _
+  have h78 : off7 inp n ≤ off8 inp n := Nat.le_add_right _ _
+  have h02 : n ≤ off2 inp n := le_trans h01 h12
+  have h03 : n ≤ off3 inp n := le_trans h02 h23
+  have h04 : n ≤ off4 inp n := le_trans h03 h34
+  have h05 : n ≤ off5 inp n := le_trans h04 h45
+  have h06 : n ≤ off6 inp n := le_trans h05 h56
+  have h07 : n ≤ off7 inp n := le_trans h06 h67
+  have h08 : n ≤ off8 inp n := le_trans h07 h78
+  have hfb := fixedBase_output_below ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+    (bitsPhase (off3 inp n)).1.eb (off6 inp n)
+    (by rw [seedPhase_hx_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hy_eq]; exact Below.var (by omega))
+    (fun k => Below.mono (bitsPhase_eb_below (off3 inp n) k) (by omega))
+  have htab := shiftedTables_output_below ((seedPhase inp n).1.hx, (seedPhase inp n).1.hy)
+    (inp.pkX, inp.pkY) (inp.r + sc nFp (seedPhase inp n).1.overflow, (seedPhase inp n).1.ry)
+    (off7 inp n) (seedPhase_hx_deg inp n)
+    (by rw [seedPhase_hx_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hy_eq]; exact Below.var (by omega))
+    (Below.mono hpx h07) (Below.mono hpy h07)
+    (Below.add (Below.mono hr h07) (Below.sc _ (by rw [seedPhase_overflow_eq]; exact Below.var (by omega))))
+    (by rw [seedPhase_ry_eq]; exact Below.var (by omega))
+  rw [main_ops']
+  simp only [List.append_assoc]
+  refine (cwOps_append _ _ _).mpr ⟨seedPhase_causal inp n, ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨curvePhase_causal inp _ (off1 inp n)
+    (Below.mono hpx h01) (Below.mono hpy h01) (Below.mono hr h01)
+    (by rw [seedPhase_overflow_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_ry_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hx_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hy_eq]; exact Below.var (by omega)), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨nonzeroPhase_causal inp (off2 inp n)
+    (Below.mono hr h02) (Below.mono hs h02), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨bitsPhase_causal (off3 inp n), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨bindPhase_causal inp _ (off4 inp n), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨cmpPhase_causal _ _ (off5 inp n)
+    (by rw [seedPhase_overflow_eq]; exact Below.var (by omega))
+    (fun j => getD_below _ (fun k => Below.mono (bitsPhase_rb_below (off3 inp n) k) (by omega)) j)
+    (fun j => getD_below _ (fun k => Below.mono (bitsPhase_sb_below (off3 inp n) k) (by omega)) j), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨fixedBase_causal _ _ (off6 inp n)
+    (by rw [seedPhase_hx_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hy_eq]; exact Below.var (by omega))
+    (fun k => Below.mono (bitsPhase_eb_below (off3 inp n) k) (by omega)), ?_⟩
+  refine (cwOps_append _ _ _).mpr ⟨shiftedTables_causal _ _ _ (off7 inp n)
+    (seedPhase_hx_deg inp n)
+    (by rw [seedPhase_hx_eq]; exact Below.var (by omega))
+    (by rw [seedPhase_hy_eq]; exact Below.var (by omega))
+    (Below.mono hpx h07) (Below.mono hpy h07)
+    (Below.add (Below.mono hr h07) (Below.sc _ (by rw [seedPhase_overflow_eq]; exact Below.var (by omega))))
+    (by rw [seedPhase_ry_eq]; exact Below.var (by omega)), ?_⟩
+  exact jointLadder_causal _ _ _ _ _ (off8 inp n)
+    ⟨by rw [seedPhase_hx_eq]; exact Below.var (by omega),
+     by rw [seedPhase_hy_eq]; exact Below.neg (Below.var (by omega))⟩
+    (TablesBelow.mono htab (by omega))
+    (fun k => Below.mono (bitsPhase_rb_below (off3 inp n) k) (by omega))
+    (fun k => Below.mono (bitsPhase_sb_below (off3 inp n) k) (by omega))
+    ⟨Below.mono hfb.1 (by omega), Below.neg (Below.mono hfb.2 (by omega))⟩
+
 end StandardECDSA
