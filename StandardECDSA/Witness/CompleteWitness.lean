@@ -120,7 +120,7 @@ theorem hb_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironm
   exact hsc.digestBits_bool k
 
 /-- `CompleteWitness.hb'`: the `r`-bit wires are Boolean. -/
-theorem hb'_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
+theorem hbR_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
     (n : Nat) (E r t : Nat) (hhint : env.hint = seedHint s)
     (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n))
     (hsc : ScalarFacts s E r t) :
@@ -133,7 +133,7 @@ theorem hb'_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnviron
   exact hsc.rBits_bool k
 
 /-- `CompleteWitness.hb''`: the `t`-bit wires are Boolean. -/
-theorem hb''_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
+theorem hbT_of_ulwc (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
     (n : Nat) (E r t : Nat) (hhint : env.hint = seedHint s)
     (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n))
     (hsc : ScalarFacts s E r t) :

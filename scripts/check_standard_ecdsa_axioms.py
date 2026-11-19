@@ -181,6 +181,21 @@ REQUIRED = {
     'StandardECDSA.Phases.zsmul_sub_of_add_eq',
     'StandardECDSA.Phases.X_eq_imp_bad_zsmul',
     'StandardECDSA.Phases.X_ne_of_avoids_zsmul',
+    # witness hint bridge (gap G2)
+    'StandardECDSA.Witness.seedHint_getElem',
+    'StandardECDSA.Witness.seedCells_length',
+    'StandardECDSA.hint_ulwc',
+    'StandardECDSA.bitVec_ulwc',
+    'StandardECDSA.seedPhase_ulwc',
+    'StandardECDSA.bitsPhase_ulwc',
+    'StandardECDSA.main_ulwc_seed_bits',
+    'StandardECDSA.main_hint_cells',
+    'StandardECDSA.seedPhase_out_overflow',
+    'StandardECDSA.eval_seedPhase_overflow',
+    'StandardECDSA.hov_of_ulwc',
+    'StandardECDSA.hb_of_ulwc',
+    'StandardECDSA.hbR_of_ulwc',
+    'StandardECDSA.hbT_of_ulwc',
 }
 
 

@@ -24,6 +24,7 @@ Task T20.
 -/
 
 import StandardECDSA.Main
+import StandardECDSA.Witness.CompleteWitness
 import StandardECDSA.Cost
 import StandardECDSA.NoLookupSub
 import StandardECDSA.Math.SignatureEquation
@@ -222,3 +223,17 @@ import StandardECDSA.HonestLadder
 #print axioms StandardECDSA.pointEquality_causal
 #print axioms StandardECDSA.assertLtOrderOf_causal
 #print axioms StandardECDSA.assertLtOrderGuardedOf_causal
+#print axioms StandardECDSA.Witness.seedHint_getElem
+#print axioms StandardECDSA.Witness.seedCells_length
+#print axioms StandardECDSA.hint_ulwc
+#print axioms StandardECDSA.bitVec_ulwc
+#print axioms StandardECDSA.seedPhase_ulwc
+#print axioms StandardECDSA.bitsPhase_ulwc
+#print axioms StandardECDSA.main_ulwc_seed_bits
+#print axioms StandardECDSA.main_hint_cells
+#print axioms StandardECDSA.seedPhase_out_overflow
+#print axioms StandardECDSA.eval_seedPhase_overflow
+#print axioms StandardECDSA.hov_of_ulwc
+#print axioms StandardECDSA.hb_of_ulwc
+#print axioms StandardECDSA.hbR_of_ulwc
+#print axioms StandardECDSA.hbT_of_ulwc
