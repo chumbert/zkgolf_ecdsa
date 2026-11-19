@@ -332,4 +332,63 @@ theorem hs5_dx (env : Environment Fp) (eb rb sb : Vector E 256)
     (by omega) (fun _ => h2) h3
   exact sub_ne_zero.mpr hne
 
+/-! ## The `ℤ`-coefficient bridge
+
+The ladder accumulator's `H`-coefficient is `(-1)^(j+1)` and its table entry's is
+`3·(-1)^j`, so the ladder denominators need the bridge with **integer**
+coefficients.  The two lemmas below are the `ℤ` analogues of
+`X_eq_imp_bad` / `X_ne_of_avoids_sharp`; the proofs are the same, with
+`sub_zsmul` / `add_zsmul` in place of `nsmul_sub_of_add_eq` / `add_nsmul`.
+-/
+
+/-- `[a]H + B₀ = [b]H + B₁` with `b ≤ a` gives `[a-b]H = B₁ - B₀`. -/
+theorem zsmul_sub_of_add_eq {Hpt B0 B1 : Affine.Point Wp} {a b : ℤ}
+    (h : a • Hpt + B0 = b • Hpt + B1) (hba : b ≤ a) :
+    (a - b) • Hpt = B1 - B0 := by
+  have h1 : a • Hpt - b • Hpt = B1 - B0 := by
+    have h2 : a • Hpt - b • Hpt + B0 = B1 := by
+      rw [show a • Hpt - b • Hpt + B0 = a • Hpt + B0 - b • Hpt from by abel, h]
+      abel
+    exact eq_sub_of_add_eq h2
+  have h3 : (a - b) • Hpt = a • Hpt - b • Hpt := sub_zsmul Hpt a b
+  rw [h3]
+  exact h1
+
+/-- **Same `x` implies one of the three bad equations**, `ℤ`-coefficient form. -/
+theorem X_eq_imp_bad_zsmul {xP yP xQ yQ : Fp} (hP : NS xP yP) (hQ : NS xQ yQ)
+    (Hpt : Affine.Point Wp) (a b : ℤ) (B0 B1 : Affine.Point Wp)
+    (hPpt : Affine.Point.some xP yP hP = a • Hpt + B0)
+    (hQpt : Affine.Point.some xQ yQ hQ = b • Hpt + B1)
+    (hx : xP = xQ) :
+    (b ≤ a ∧ (a - b) • Hpt = B1 - B0) ∨
+      (a ≤ b ∧ (b - a) • Hpt = B0 - B1) ∨
+      (a + b) • Hpt = -(B0 + B1) := by
+  subst hx
+  rcases some_eq_or_neg_of_X_eq hP hQ with h | h
+  · have heq : a • Hpt + B0 = b • Hpt + B1 := by rw [← hPpt, h, hQpt]
+    rcases le_total b a with hba | hab
+    · exact Or.inl ⟨hba, zsmul_sub_of_add_eq heq hba⟩
+    · exact Or.inr (Or.inl ⟨hab, zsmul_sub_of_add_eq heq.symm hab⟩)
+  · right; right
+    have heq : a • Hpt + B0 = -(b • Hpt + B1) := by rw [← hPpt, h, hQpt]
+    have h1 : a • Hpt + B0 + (b • Hpt + B1) = 0 := by rw [heq]; abel
+    have h3 : (a + b) • Hpt + (B0 + B1) = 0 := by
+      rw [add_zsmul, ← h1]; abel
+    exact eq_neg_of_add_eq_zero_left (by simpa [add_comm] using h3)
+
+/-- **The bridge, `ℤ`-coefficient form.** -/
+theorem X_ne_of_avoids_zsmul {xP yP xQ yQ : Fp} (hP : NS xP yP) (hQ : NS xQ yQ)
+    (Hpt : Affine.Point Wp) (a b : ℤ) (B0 B1 : Affine.Point Wp)
+    (hPpt : Affine.Point.some xP yP hP = a • Hpt + B0)
+    (hQpt : Affine.Point.some xQ yQ hQ = b • Hpt + B1)
+    (h1 : b ≤ a → (a - b) • Hpt ≠ B1 - B0)
+    (h2 : a ≤ b → (b - a) • Hpt ≠ B0 - B1)
+    (h3 : (a + b) • Hpt ≠ -(B0 + B1)) :
+    xP ≠ xQ := by
+  intro hx
+  rcases X_eq_imp_bad_zsmul hP hQ Hpt a b B0 B1 hPpt hQpt hx with ⟨h, he⟩ | ⟨h, he⟩ | he
+  · exact h1 h he
+  · exact h2 h he
+  · exact h3 he
+
 end StandardECDSA.Phases

@@ -503,9 +503,18 @@ unfolds `toAff` first and kills the match), and `h4pt`/`h5pt'` must be passed
 directly (the goal is syntactically the hypothesis, so `rw …; simp` reports
 "no goals to be solved").
 
+**G1-c, the `ℤ`-coefficient bridge — DONE (round 27).** The ladder accumulator's
+`H`-coefficient is `(-1)^(j+1)` and its table entry's is `3·(-1)^j`, so the
+ladder denominators cannot use `X_ne_of_avoids_sharp` (which takes `Nat`
+coefficients).  `HonestShifted.lean` now also proves the integer analogues
+`zsmul_sub_of_add_eq`, `X_eq_imp_bad_zsmul` and `X_ne_of_avoids_zsmul`; the
+proofs are the same as the `Nat` versions with `sub_zsmul` / `add_zsmul` in
+place of `nsmul_sub_of_add_eq` / `add_nsmul`.  (Note `sub_zsmul`'s argument
+order is `sub_zsmul (a : G) (m n : ℤ)`.)
+
 **What remains (G1-c).** The 256-step ladder denominators `hj1`, `hj2`,
-`hjf1 … hjf4`, then discharging `CompleteWitness`'s denominator fields from
-`exists_goodOffset_famOf`.
+`hjf1 … hjf4` — now unblocked by the `ℤ` bridge — then discharging
+`CompleteWitness`'s denominator fields from `exists_goodOffset_famOf`.
 
 ### G2 — T16 concrete witness environment
 

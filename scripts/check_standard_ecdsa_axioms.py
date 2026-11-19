@@ -128,6 +128,9 @@ REQUIRED = {
     'StandardECDSA.Phases.hs3_dx',
     'StandardECDSA.Phases.hs4_dx',
     'StandardECDSA.Phases.hs5_dx',
+    'StandardECDSA.Phases.zsmul_sub_of_add_eq',
+    'StandardECDSA.Phases.X_eq_imp_bad_zsmul',
+    'StandardECDSA.Phases.X_ne_of_avoids_zsmul',
 }
 
 

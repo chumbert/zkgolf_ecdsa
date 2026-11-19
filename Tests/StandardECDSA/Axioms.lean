@@ -161,3 +161,6 @@ import StandardECDSA.Phases.HonestShifted
 #print axioms StandardECDSA.Phases.hs3_dx
 #print axioms StandardECDSA.Phases.hs4_dx
 #print axioms StandardECDSA.Phases.hs5_dx
+#print axioms StandardECDSA.Phases.zsmul_sub_of_add_eq
+#print axioms StandardECDSA.Phases.X_eq_imp_bad_zsmul
+#print axioms StandardECDSA.Phases.X_ne_of_avoids_zsmul
