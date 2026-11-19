@@ -582,4 +582,127 @@ theorem jointLadder_denominators_of_ulwc (env : ProverEnvironment Fp) (eb : Vect
   exact jointLadder_denominators env.toEnvironment eb rb sb Qpt Rpt H hH hgood acc0 tables
     target n hacc0 hb hb' htab hc
 
+/-! ## The bit-encoding bridges
+
+`jointLadder_denominators_of_ulwc` takes the two `leNat` bridges as hypotheses.
+They are discharged here from the seed's `ScalarFacts` and the circuit's own
+hint cells. -/
+
+/-- The `r`-bit vector recomposes to `r`. -/
+theorem leNat_rb_of_main (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
+    (n : Nat) (E r t : Nat) (hhint : env.hint = Witness.seedHint s)
+    (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n))
+    (hsc : Witness.ScalarFacts s E r t) :
+    (leNat (fun k : Fin 256 =>
+      (Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.rb.get k)).val) : ℤ) = r := by
+  have hval : ∀ k : Fin 256,
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.rb.get k) = s.rBits k := by
+    intro k
+    rw [bitsPhase_out_rb, eval_var]
+    rw [((main_hint_cells inp s env n hhint hw).2.2.2.2.2.1 k), Witness.seedCells_getD_r]
+  have hcongr : leNat (fun k : Fin 256 =>
+      (Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.rb.get k)).val)
+      = leNat (fun k : Fin 256 => (s.rBits k).val) := by
+    congr 1
+    funext k
+    rw [hval k]
+  rw [hcongr, hsc.rBits_val]
+
+/-- The `t`-bit vector recomposes to `t`. -/
+theorem leNat_sb_of_main (inp : Var Input Fp) (s : Witness.Seed) (env : ProverEnvironment Fp)
+    (n : Nat) (E r t : Nat) (hhint : env.hint = Witness.seedHint s)
+    (hw : env.UsesLocalWitnessesCompleteness n ((main inp).operations n))
+    (hsc : Witness.ScalarFacts s E r t) :
+    (leNat (fun k : Fin 256 =>
+      (Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.sb.get k)).val) : ℤ) = t := by
+  have hval : ∀ k : Fin 256,
+      Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.sb.get k) = s.tBits k := by
+    intro k
+    rw [bitsPhase_out_sb, eval_var]
+    rw [((main_hint_cells inp s env n hhint hw).2.2.2.2.2.2 k), Witness.seedCells_getD_t]
+  have hcongr : leNat (fun k : Fin 256 =>
+      (Expression.eval env.toEnvironment ((bitsPhase (off3 inp n)).1.sb.get k)).val)
+      = leNat (fun k : Fin 256 => (s.tBits k).val) := by
+    congr 1
+    funext k
+    rw [hval k]
+  rw [hcongr, hsc.tBits_val]
+
+/-! ## The ladder stage of `main` -/
+
+/-- The ladder's initial accumulator `-H` of `main`. -/
+abbrev jlAcc0 (inp : Var Input Fp) (n : Nat) : Pt :=
+  ((seedPhase inp n).1.hx, -(seedPhase inp n).1.hy)
+
+/-- The ladder's shifted tables of `main`. -/
+abbrev jlTables (inp : Var Input Fp) (n : Nat) : Tables :=
+  (shiftedTables (shH inp n) (shQ inp) (shR inp n) (off7 inp n)).1
+
+/-- The ladder's target `-ep` of `main`. -/
+abbrev jlTarget (inp : Var Input Fp) (n : Nat) : Pt :=
+  (((fixedBase (fbH inp n) (fbEb inp n) (off6 inp n)).1).1,
+    -((fixedBase (fbH inp n) (fbEb inp n) (off6 inp n)).1).2)
+
+/-- The ladder stage of `main` inherits `main`'s local witnesses. -/
+theorem main_ulwc_jointLadder (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat)
+    (h : env.UsesLocalWitnessesCompleteness n ((main inp).operations n)) :
+    env.UsesLocalWitnessesCompleteness (off8 inp n)
+      ((jointLadder (jlAcc0 inp n) (jlTables inp n) (fbRb inp n) (fbSb inp n)
+        (jlTarget inp n) (off8 inp n)).2) := by
+  rw [main_ops'] at h
+  simp only [List.append_assoc] at h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  obtain ⟨-, h⟩ := ulwc_append_left h
+  exact h
+
+/-- The ladder's initial accumulator is `-H`. -/
+theorem jlAcc0_neg (inp : Var Input Fp) (env : ProverEnvironment Fp) (n : Nat)
+    (H : AffinePoint K) (hH : H.IsOnCurve params)
+    (hHX : H.X = Expression.eval env.toEnvironment (seedPhase inp n).1.hx)
+    (hHY : H.Y = Expression.eval env.toEnvironment (seedPhase inp n).1.hy)
+    (hQns : NS (Expression.eval env.toEnvironment inp.pkX)
+      (Expression.eval env.toEnvironment inp.pkY))
+    (hRns : NS (Expression.eval env.toEnvironment (shR inp n).1)
+      (Expression.eval env.toEnvironment (shR inp n).2))
+    (hgood : GoodOffset H hH (famOf env.toEnvironment (fbEb inp n) (fbRb inp n)
+      (fbSb inp n)
+      (Affine.Point.some (Expression.eval env.toEnvironment inp.pkX)
+        (Expression.eval env.toEnvironment inp.pkY) hQns)
+      (Affine.Point.some (Expression.eval env.toEnvironment (shR inp n).1)
+        (Expression.eval env.toEnvironment (shR inp n).2) hRns))) :
+    ∃ hns : NS (Expression.eval env.toEnvironment (jlAcc0 inp n).1)
+        (Expression.eval env.toEnvironment (jlAcc0 inp n).2),
+      Affine.Point.some (Expression.eval env.toEnvironment (jlAcc0 inp n).1)
+        (Expression.eval env.toEnvironment (jlAcc0 inp n).2) hns = -goodOffsetAffinePt H hH := by
+  have hHns : NS (Expression.eval env.toEnvironment (seedPhase inp n).1.hx)
+      (Expression.eval env.toEnvironment (seedPhase inp n).1.hy) :=
+    ns_congr hHX.symm hHY.symm (nsOfOnCurve H hH)
+  have hHpt : Affine.Point.some (Expression.eval env.toEnvironment (seedPhase inp n).1.hx)
+      (Expression.eval env.toEnvironment (seedPhase inp n).1.hy) hHns
+      = goodOffsetAffinePt H hH := by
+    rw [goodOffsetAffinePt_eq_some H hH hgood]
+    exact some_congr hHX.symm hHY.symm hHns (nsOfOnCurve H hH)
+  have hns : NS (Expression.eval env.toEnvironment (jlAcc0 inp n).1)
+      (Expression.eval env.toEnvironment (jlAcc0 inp n).2) := by
+    simp only [jlAcc0, eval_neg]
+    exact negPt_ns hHns
+  refine ⟨hns, ?_⟩
+  simp only [jlAcc0, eval_neg]
+  rw [← hHpt, ← negPt_group (Expression.eval env.toEnvironment (seedPhase inp n).1.hx)
+    (Expression.eval env.toEnvironment (seedPhase inp n).1.hy) hHns]
+
+/-- Negating a point's `y`-expression negates the group point. -/
+theorem negPt_pair (p : Pt) (env : Environment Fp)
+    (hns : NS (Expression.eval env p.1) (Expression.eval env p.2)) :
+    ∃ hTgt : NS (Expression.eval env p.1) (-(Expression.eval env p.2)),
+      Affine.Point.some (Expression.eval env p.1) (-(Expression.eval env p.2)) hTgt
+        = -(Affine.Point.some (Expression.eval env p.1) (Expression.eval env p.2) hns) :=
+  ⟨negPt_ns hns, negPt_group _ _ hns⟩
+
 end StandardECDSA

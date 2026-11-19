@@ -115,6 +115,12 @@ REQUIRED = {
     'StandardECDSA.elmTo_rows14_of_ulwc',
     'StandardECDSA.jointLadder_step_ulwc',
     'StandardECDSA.jointLadder_denominators_of_ulwc',
+    # bit-encoding bridges and main-level ladder wiring (G2-a rest)
+    'StandardECDSA.leNat_rb_of_main',
+    'StandardECDSA.leNat_sb_of_main',
+    'StandardECDSA.main_ulwc_jointLadder',
+    'StandardECDSA.jlAcc0_neg',
+    'StandardECDSA.negPt_pair',
     # witness generation
     'StandardECDSA.Witness.generateSeed_complete',
     # group order
