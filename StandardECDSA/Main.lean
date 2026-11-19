@@ -1751,4 +1751,101 @@ theorem affDouble_complete (p : Pt) (env : ProverEnvironment Fp) (n : Nat)
   · rw [e3]; ring
   · rw [e4]; ring
 
+
+
+theorem shiftedTables_complete (h q r : Pt) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((shiftedTables h q r).operations n))
+    (hdeg : deg h.1 = 1)
+    (hy : Expression.eval env h.2 ≠ 0)
+    (hdx1 : Expression.eval env h.1 - env.get (n + 2) ≠ 0)
+    (hdx2 : Expression.eval env q.1 - env.get (n + 6) ≠ 0)
+    (hdx3 : Expression.eval env r.1 - env.get (n + 6) ≠ 0)
+    (hdx4 : Expression.eval env r.1 - env.get (n + 10) ≠ 0)
+    (hdx5 : Expression.eval env r.1 - env.get (n + 22) ≠ 0) :
+    ConstraintsHold.Completeness env ((shiftedTables h q r).operations n) := by
+  simp only [shiftedTables, circuit_norm] at hw ⊢
+  simp only [affAdd_localLength', affDouble_localLength' hdeg, Nat.add_comm 4] at hw ⊢
+  obtain ⟨w1, w2, w3, w4, w5, w6, w7, w8⟩ := hw
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · exact affDouble_complete h env n w1 hy
+  · exact affAdd_complete _ _ env _ w2 (by rw [affDouble_out_fst hdeg]; exact hdx1)
+  · exact affAdd_complete _ _ env _ w3 (by rw [affAdd_out_fst]; exact hdx2)
+  · exact affAdd_complete _ _ env _ w4 (by rw [affAdd_out_fst]; exact hdx3)
+  · exact affAdd_complete _ _ env _ w5 (by rw [affAdd_out_fst]; exact hdx4)
+  · exact affAdd_complete _ _ env _ w6 hdx2
+  · exact affAdd_complete _ _ env _ w7 hdx3
+  · exact affAdd_complete _ _ env _ w8 (by rw [affAdd_out_fst]; exact hdx5)
+
+theorem muxConst4W_complete (b0 b1 : E) (tab : Array (Fp × Fp)) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((muxConst4W b0 b1 tab).operations n)) :
+    ConstraintsHold.Completeness env ((muxConst4W b0 b1 tab).operations n) := by
+  simp only [muxConst4W, circuit_norm, pm] at hw ⊢
+  rw [hw]; ring
+
+theorem fixedBaseBody_localLength (eb : Vector E 256) (ep : Pt) (i : Fin 128) (n : Nat) :
+    (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables ep i).localLength n = 5 := by
+  simp only [fixedBaseBody, Circuit.localLength, bind_snd,
+    muxConst4W_localLength, affAdd_localLength, Operations.append_localLength]
+
+theorem fixedBaseBody_complete (eb : Vector E 256) (ep : Pt) (env : ProverEnvironment Fp)
+    (n : Nat) (i : Fin 128)
+    (hw : env.UsesLocalWitnessesCompleteness n ((fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables ep i).operations n))
+    (hdx : Expression.eval env.toEnvironment ((fbMux eb StandardECDSA.Math.FixedTables.fixedTables i).output n).1
+        - Expression.eval env.toEnvironment ep.1 ≠ 0) :
+    ConstraintsHold.Completeness env ((fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables ep i).operations n) := by
+  simp only [fixedBaseBody_eq] at hw ⊢
+  simp only [ConstraintsHold.Completeness, circuit_norm, ulwc_append,
+    muxConst4W_localLength, Operations.forAllNoOffset_append] at hw ⊢
+  refine ⟨muxConst4W_complete _ _ _ env n hw.1, ?_⟩
+  exact affAdd_complete ep ((fbMux eb StandardECDSA.Math.FixedTables.fixedTables i).output n) env _ hw.2 hdx
+
+theorem completeness_append (env : ProverEnvironment Fp) (a b : Operations Fp) :
+    ConstraintsHold.Completeness env (a ++ b) ↔
+      ConstraintsHold.Completeness env a ∧ ConstraintsHold.Completeness env b := by
+  simp only [ConstraintsHold.Completeness, Operations.forAllNoOffset_append]
+
+theorem fixedBase_foldl_completeness (eb : Vector E 256) (init : Pt)
+    (env : ProverEnvironment Fp) (n : Nat) :
+    ConstraintsHold.Completeness env
+        ((Circuit.foldlRange 128 init (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+          (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).operations n) ↔
+      ∀ i : Fin 128, ConstraintsHold.Completeness env
+        ((fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables
+          (Circuit.FoldlM.foldlAcc n (Vector.finRange 128) (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables) init i) i).operations
+          (n + i * (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables default i).localLength)) := by
+  simp only [ConstraintsHold.Completeness, Circuit.foldlRange.forAllNoOffset]
+
+@[irreducible] def fbAcc (eb : Vector E 256) (h : Pt) (n : Nat) (i : Fin 128) : Pt :=
+  Circuit.FoldlM.foldlAcc (n + 4) (Vector.finRange 128) (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (affAdd h (cst shiftX, cst (-shiftY)) n).1 i
+
+theorem fbAcc_eq (eb : Vector E 256) (h : Pt) (n : Nat) (i : Fin 128) :
+    fbAcc eb h n i = Circuit.FoldlM.foldlAcc (n + 4) (Vector.finRange 128)
+      (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables) (affAdd h (cst shiftX, cst (-shiftY)) n).1 i := by
+  unfold fbAcc
+  rfl
+
+theorem fixedBase_complete (h : Pt) (eb : Vector E 256) (env : ProverEnvironment Fp) (n : Nat)
+    (hw : env.UsesLocalWitnessesCompleteness n ((fixedBase h eb).operations n))
+    (hdx0 : Expression.eval env.toEnvironment (cst shiftX) - Expression.eval env.toEnvironment h.1 ≠ 0)
+    (hdx : ∀ i : Fin 128,
+      Expression.eval env.toEnvironment (fbMux eb StandardECDSA.Math.FixedTables.fixedTables i (n + 4 + i.val * 5)).1.1
+        - Expression.eval env.toEnvironment (fbAcc eb h n i).1 ≠ 0) :
+    ConstraintsHold.Completeness env ((fixedBase h eb).operations n) := by
+  rw [fixedBase_ops] at hw ⊢
+  rw [completeness_append]
+  rw [ulwc_append] at hw
+  simp only [affAdd_localLength'] at hw
+  refine ⟨affAdd_complete h (cst shiftX, cst (-shiftY)) env n hw.1 hdx0, ?_⟩
+  rw [fixedBase_foldl_completeness]
+  rw [Circuit.foldlRange.usesLocalWitnesses] at hw
+  simp only [← fbAcc_eq] at hw ⊢
+  intro i
+  simp only [fixedBaseBody_localLength] at hw ⊢
+  simp only [fixedBaseBody_eq] at hw ⊢
+  simp only [ConstraintsHold.Completeness, circuit_norm, ulwc_append,
+    muxConst4W_localLength, Operations.forAllNoOffset_append] at hw ⊢
+  refine ⟨muxConst4W_complete _ _ _ env _ (hw.2 i).1, ?_⟩
+  exact affAdd_complete _ _ env _ (hw.2 i).2 (hdx i)
+
 end StandardECDSA
