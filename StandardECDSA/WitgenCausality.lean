@@ -1678,4 +1678,42 @@ theorem main_ulwc_exists (inp : Var Input Fp) (hint : ProverHint Fp) (init : Lis
     ← Operations.forAll_toFlat_iff]
   exact proverEnvironment_usesLocalWitnesses_envAgree hint init (forAll_envAgree_swap hc)
 
+
+/-! ## Task T18: fixed-hint causality of the assembled circuit -/
+
+/-- **Fixed-hint causality of the assembled circuit `main`** (task T18).
+
+Every witness generator carried by `main`'s operation list evaluates identically in
+two prover environments that agree on the wires below *its own* offset, on the hint
+provider and on the prover data.
+
+This is the truthful causality statement for the honest witness generator, and it is
+deliberately **not** Clean's `Circuit.ComputableWitnesses` / `computableWitness`: that
+predicate constrains only `ProverEnvironment.get` (through `AgreesBelow`) and is
+therefore unsatisfiable for the `FExpr.hintGet` leaves used by the seed, bit and table
+phases — the hint provider is a genuine input to the generator, not a function of the
+wires.  The offset is indexed by the generator's own position (`m` below) rather than
+by the circuit's start, because later generators legitimately read wires produced by
+earlier ones; requiring agreement below the circuit start would be vacuous.
+
+The statement is *unconditional* in the hint: it holds for every hint provider, which
+is what makes it usable both for the honest prover (whose hint is built from
+`generateSeed`) and for the soundness argument (which quantifies over all hints). -/
+theorem main_fixedHint_causal (inp : Var Input Fp) (n : ℕ)
+    (hpx : Below n inp.pkX) (hpy : Below n inp.pkY)
+    (hlo : Below n inp.digestLo) (hhi : Below n inp.digestHi)
+    (hr : Below n inp.r) (hs : Below n inp.s) :
+    ((main inp).operations n).forAllFlat n
+      { witness := fun m _ c => ∀ env env' : ProverEnvironment Fp,
+          EnvAgree m env env' → c.eval env = c.eval env' } :=
+  main_causal inp n hpx hpy hlo hhi hr hs
+
+/-- The seed phase's overflow hint is a fixed-hint causal generator: it reads only
+the hint provider, so two environments agreeing below `n + 3` on the wires and on
+the hint provider evaluate it identically.  This is the concrete shape of
+`main_fixedHint_causal` at the first hint that the circuit consumes. -/
+theorem seedPhase_overflow_hint_causal (n : ℕ) :
+    FBelow (n + 3) (Witgen.FExpr.hintGet hintKey 1 (.const (3 : UInt64)) ⟨0, by decide⟩) :=
+  FBelow.hintGet (row := .const (3 : UInt64)) hintKey 1 ⟨0, by decide⟩ (U64Below.const _ _)
+
 end StandardECDSA

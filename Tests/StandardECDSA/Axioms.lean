@@ -38,6 +38,7 @@ import StandardECDSA.Phases.LadderSemantics
 import StandardECDSA.Phases.Cost
 import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
+import StandardECDSA.WitgenCausality
 import StandardECDSA.Phases.HonestDenominators
 import StandardECDSA.Phases.HonestShifted
 import StandardECDSA.HonestLadder
@@ -193,3 +194,31 @@ import StandardECDSA.HonestLadder
 #print axioms StandardECDSA.hjf3_row
 #print axioms StandardECDSA.hjf4_row
 #print axioms StandardECDSA.jointLadder_denominators
+
+/-! ## Witness-generator causality (T18 / G2) -/
+
+#print axioms StandardECDSA.main_causal
+#print axioms StandardECDSA.main_fixedHint_causal
+#print axioms StandardECDSA.seedPhase_overflow_hint_causal
+#print axioms StandardECDSA.main_ulwc_exists
+#print axioms StandardECDSA.proverEnvironment_usesLocalWitnesses_envAgree
+#print axioms StandardECDSA.forAll_envAgree_swap
+#print axioms StandardECDSA.seedPhase_causal
+#print axioms StandardECDSA.curvePhase_causal
+#print axioms StandardECDSA.nonzeroPhase_causal
+#print axioms StandardECDSA.bitsPhase_causal
+#print axioms StandardECDSA.bindPhase_causal
+#print axioms StandardECDSA.cmpPhase_causal
+#print axioms StandardECDSA.fixedBase_causal
+#print axioms StandardECDSA.shiftedTables_causal
+#print axioms StandardECDSA.jointLadder_causal
+#print axioms StandardECDSA.affAdd_causal
+#print axioms StandardECDSA.affDouble_causal
+#print axioms StandardECDSA.elm_causal
+#print axioms StandardECDSA.elmTo_causal
+#print axioms StandardECDSA.mux4W_causal
+#print axioms StandardECDSA.muxConst4W_causal
+#print axioms StandardECDSA.isOnCurve_causal
+#print axioms StandardECDSA.pointEquality_causal
+#print axioms StandardECDSA.assertLtOrderOf_causal
+#print axioms StandardECDSA.assertLtOrderGuardedOf_causal

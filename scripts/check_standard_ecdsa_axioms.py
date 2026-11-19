@@ -25,6 +25,32 @@ PERMITTED = {'propext', 'Quot.sound', 'Classical.choice'}
 # Roots that must appear in the audit.  Kept explicit so that deleting a
 # `#print axioms` line from the Lean file cannot silently shrink the audit.
 REQUIRED = {
+    # witness-generator causality (T18 / G2)
+    'StandardECDSA.main_causal',
+    'StandardECDSA.main_fixedHint_causal',
+    'StandardECDSA.seedPhase_overflow_hint_causal',
+    'StandardECDSA.main_ulwc_exists',
+    'StandardECDSA.proverEnvironment_usesLocalWitnesses_envAgree',
+    'StandardECDSA.forAll_envAgree_swap',
+    'StandardECDSA.seedPhase_causal',
+    'StandardECDSA.curvePhase_causal',
+    'StandardECDSA.nonzeroPhase_causal',
+    'StandardECDSA.bitsPhase_causal',
+    'StandardECDSA.bindPhase_causal',
+    'StandardECDSA.cmpPhase_causal',
+    'StandardECDSA.fixedBase_causal',
+    'StandardECDSA.shiftedTables_causal',
+    'StandardECDSA.jointLadder_causal',
+    'StandardECDSA.affAdd_causal',
+    'StandardECDSA.affDouble_causal',
+    'StandardECDSA.elm_causal',
+    'StandardECDSA.elmTo_causal',
+    'StandardECDSA.mux4W_causal',
+    'StandardECDSA.muxConst4W_causal',
+    'StandardECDSA.isOnCurve_causal',
+    'StandardECDSA.pointEquality_causal',
+    'StandardECDSA.assertLtOrderOf_causal',
+    'StandardECDSA.assertLtOrderGuardedOf_causal',
     # end-to-end
     'StandardECDSA.main_soundness',
     'StandardECDSA.main_complete_with_seed',
