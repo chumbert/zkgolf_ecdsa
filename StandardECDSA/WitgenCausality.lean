@@ -1596,4 +1596,86 @@ theorem main_causal (inp : Var Input Fp) (n : ℕ)
     (fun k => Below.mono (bitsPhase_sb_below (off3 inp n) k) (by omega))
     ⟨Below.mono hfb.1 (by omega), Below.neg (Below.mono hfb.2 (by omega))⟩
 
+/-! ## The concrete prover environment -/
+
+theorem proverEnvironment_usesLocalWitnesses_envAgree {ops : List (FlatOperation Fp)}
+    (hint : ProverHint Fp) (init : List Fp)
+    (h : ∀ (env env' : ProverEnvironment Fp),
+      FlatOperation.forAll init.length
+        { witness n _ c := EnvAgree n env env' → c.eval env = c.eval env' } ops) :
+    (FlatOperation.proverEnvironment ops hint init).UsesLocalWitnessesFlat init.length ops := by
+  simp only [FlatOperation.proverEnvironment, ProverEnvironment.UsesLocalWitnessesFlat,
+    ProverEnvironment.ExtendsVector]
+  induction ops generalizing init with
+  | nil => trivial
+  | cons op ops ih =>
+    simp only [FlatOperation.forAll_cons] at h ⊢
+    cases op with
+    | assert e =>
+      simp_all [FlatOperation.dynamicWitnesses_cons, Condition.applyFlat,
+        FlatOperation.singleLocalLength, FlatOperation.dynamicWitness]
+    | lookup l =>
+      simp_all [FlatOperation.dynamicWitnesses_cons, Condition.applyFlat,
+        FlatOperation.singleLocalLength, FlatOperation.dynamicWitness]
+    | interact i =>
+      simp_all [FlatOperation.dynamicWitnesses_cons, Condition.applyFlat,
+        FlatOperation.singleLocalLength, FlatOperation.dynamicWitness]
+    | witness m compute =>
+      simp_all only [Condition.applyFlat, FlatOperation.singleLocalLength]
+      constructor
+      case right =>
+        specialize ih (init ++ (compute.eval (.fromList init hint)).toList)
+        simp only [List.length_append, Vector.length_toList] at ih
+        ring_nf at *
+        exact ih fun _ _ => (h ..).right
+      clear ih
+      replace h := fun env env' => (h env env').left
+      intro i
+      simp only [ProverEnvironment.fromList]
+      rw [FlatOperation.getElem?_dynamicWitnesses_cons_right i.is_lt]
+      simp only [FlatOperation.dynamicWitness, Vector.getElem_toList]
+      congr 1
+      apply h
+      refine ⟨fun j hj => ?_, rfl, rfl⟩
+      simp [ProverEnvironment.fromList, hj, FlatOperation.getElem?_dynamicWitnesses_of_lt]
+
+
+
+theorem forAll_envAgree_swap {ops : List (FlatOperation Fp)} {n : ℕ}
+    (h : FlatOperation.forAll n
+      { witness := fun m _ c => ∀ env env' : ProverEnvironment Fp,
+        EnvAgree m env env' → c.eval env = c.eval env' } ops) :
+    ∀ env env' : ProverEnvironment Fp,
+      FlatOperation.forAll n
+        { witness := fun m _ c => EnvAgree m env env' → c.eval env = c.eval env' } ops := by
+  induction ops generalizing n with
+  | nil => intro env env'; trivial
+  | cons op ops ih =>
+    intro env env'
+    cases op with
+    | witness m c =>
+      simp only [FlatOperation.forAll_cons] at h ⊢
+      exact ⟨h.1 env env', ih h.2 env env'⟩
+    | assert e =>
+      simp only [FlatOperation.forAll_cons] at h ⊢
+      exact ⟨h.1, ih h.2 env env'⟩
+    | lookup l =>
+      simp only [FlatOperation.forAll_cons] at h ⊢
+      exact ⟨h.1, ih h.2 env env'⟩
+    | interact i =>
+      simp only [FlatOperation.forAll_cons] at h ⊢
+      exact ⟨h.1, ih h.2 env env'⟩
+
+theorem main_ulwc_exists (inp : Var Input Fp) (hint : ProverHint Fp) (init : List Fp)
+    (hpx : Below init.length inp.pkX) (hpy : Below init.length inp.pkY)
+    (hlo : Below init.length inp.digestLo) (hhi : Below init.length inp.digestHi)
+    (hr : Below init.length inp.r) (hs : Below init.length inp.s) :
+    ((main inp).proverEnvironment hint init).UsesLocalWitnesses init.length
+      ((main inp).operations init.length) := by
+  have hc := main_causal inp init.length hpx hpy hlo hhi hr hs
+  simp only [OpsCausal, ← Operations.forAll_toFlat_iff] at hc
+  simp only [Circuit.proverEnvironment, ProverEnvironment.UsesLocalWitnesses,
+    ← Operations.forAll_toFlat_iff]
+  exact proverEnvironment_usesLocalWitnesses_envAgree hint init (forAll_envAgree_swap hc)
+
 end StandardECDSA
