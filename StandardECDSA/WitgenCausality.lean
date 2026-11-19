@@ -290,6 +290,14 @@ theorem cwOps_bind {α β : Type} {f : Circuit Fp α} {g : α → Circuit Fp β}
   rw [Circuit.bind_operations_eq]
   exact (cwOps_append _ _ _).mpr ⟨hf, hg⟩
 
+theorem cwOps_bind' {α β : Type} {f : Circuit Fp α} {g : α → Circuit Fp β} {n L : ℕ}
+    (hL : (f.operations n).localLength = L)
+    (hf : OpsCausal n (f.operations n))
+    (hg : OpsCausal (n + L) ((g ((f n).1)).operations (n + L))) :
+    OpsCausal n ((f >>= g).operations n) := by
+  rw [← hL] at hg
+  exact cwOps_bind hf hg
+
 theorem cwOps_map {α β : Type} {f : Circuit Fp α} {g : α → β} {n : ℕ}
     (hf : OpsCausal n (f.operations n)) : OpsCausal n ((g <$> f).operations n) := by
   rw [Circuit.map_operations_eq]
@@ -480,5 +488,386 @@ theorem assertZeroLazy_causal (e : E) (n : ℕ) (he : Below n e) :
       | var v => simp only [h]; exact cwOps_pure _ _
       | const cc => simp only [h]; exact cwOps_pure _ _
       | add x y => simp only [h]; exact cwOps_pure _ _
+
+/-! ## Field-level gadgets -/
+
+theorem nonzero_output_below (x : E) (n : ℕ) : Below (n + 1) ((nonzero x n).1) := by
+  simp only [nonzero, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField]
+  exact Below.var (by omega)
+
+theorem nonzero_causal (x : E) (n : ℕ) (hx : Below n x) :
+    OpsCausal n ((nonzero x).operations n) := by
+  simp only [nonzero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.inv (FBelow.expr hx))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem assertBool_causal (b : E) (n : ℕ) :
+    OpsCausal n ((Gadgets.assertBool b).operations n) := by
+  simp only [Gadgets.assertBool]
+  exact cwOps_assertZero _ _
+
+theorem bitOf_causal (x : E) (j : Nat) (n : ℕ) (hx : Below n x) :
+    OpsCausal n ((bitOf x j).operations n) := by
+  simp only [bitOf]
+  exact cwOps_witnessField (FBelow.ite (BBelow.bit j (FBelow.expr hx))
+    (FBelow.const _ _) (FBelow.const _ _))
+
+theorem selW_causal (b x0 x1 : E) (n : ℕ) (hb : Below n b) (h0 : Below n x0)
+    (h1 : Below n x1) : OpsCausal n ((selW b x0 x1).operations n) := by
+  simp only [selW]
+  refine cwOps_bind (cwOps_witnessField (FBelow.mul (FBelow.expr hb)
+    (FBelow.expr (Below.sub h1 h0)))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem selW_output_below (b x0 x1 : E) (n : ℕ) (h0 : Below n x0) (h1 : Below n x1) :
+    Below (n + 1) ((selW b x0 x1 n).1) := by
+  simp only [selW, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField]
+  exact Below.add (Below.mono h0 (by omega)) (Below.var (by omega))
+
+theorem muxConst4W_causal (b0 b1 : E) (tab : Array (Fp × Fp)) (n : ℕ)
+    (h0 : Below n b0) (h1 : Below n b1) :
+    OpsCausal n ((muxConst4W b0 b1 tab).operations n) := by
+  simp only [muxConst4W]
+  refine cwOps_bind (cwOps_witnessField (FBelow.mul (FBelow.expr h0) (FBelow.expr h1))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem muxConst4W_output_below (b0 b1 : E) (tab : Array (Fp × Fp)) (n : ℕ)
+    (h0 : Below n b0) (h1 : Below n b1) :
+    Below (n + 1) ((muxConst4W b0 b1 tab n).1).1 ∧
+      Below (n + 1) ((muxConst4W b0 b1 tab n).1).2 := by
+  have hb01 : Below (n + 1) (Expression.var ⟨n⟩ : E) := Below.var (by omega)
+  have h0' : Below (n + 1) b0 := Below.mono h0 (by omega)
+  have h1' : Below (n + 1) b1 := Below.mono h1 (by omega)
+  simp only [muxConst4W, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField]
+  refine ⟨?_, ?_⟩ <;>
+    (simp only [muxConst4Coord]
+     exact Below.add (Below.add (Below.add (Below.cst _ _) (Below.sc _ h0'))
+       (Below.sc _ h1')) (Below.sc _ hb01))
+
+theorem mux4W_causal (b0 b1 : E) (p0 p1 p2 p3 : Pt) (n : ℕ)
+    (hb0 : Below n b0) (hb1 : Below n b1)
+    (h01 : Below n p0.1) (h02 : Below n p0.2)
+    (h11 : Below n p1.1) (h12 : Below n p1.2)
+    (h21 : Below n p2.1) (h22 : Below n p2.2)
+    (h31 : Below n p3.1) (h32 : Below n p3.2) :
+    OpsCausal n ((mux4W b0 b1 p0 p1 p2 p3).operations n) := by
+  simp only [mux4W]
+  refine cwOps_bind (selW_causal b0 p0.1 p1.1 n hb0 h01 h11) ?_
+  simp only [operations_localLength, selW_localLength]
+  refine cwOps_bind (selW_causal b0 p2.1 p3.1 (n + 1) (Below.mono hb0 (by omega))
+    (Below.mono h21 (by omega)) (Below.mono h31 (by omega))) ?_
+  simp only [operations_localLength, selW_localLength]
+  refine cwOps_bind (selW_causal b1 _ _ (n + 1 + 1) (Below.mono hb1 (by omega))
+    (Below.mono (selW_output_below b0 p0.1 p1.1 n h01 h11) (by omega))
+    (Below.mono (selW_output_below b0 p2.1 p3.1 (n + 1) (Below.mono h21 (by omega))
+      (Below.mono h31 (by omega))) (by omega))) ?_
+  simp only [operations_localLength, selW_localLength]
+  refine cwOps_bind (selW_causal b0 p0.2 p1.2 (n + 1 + 1 + 1) (Below.mono hb0 (by omega))
+    (Below.mono h02 (by omega)) (Below.mono h12 (by omega))) ?_
+  simp only [operations_localLength, selW_localLength]
+  refine cwOps_bind (selW_causal b0 p2.2 p3.2 (n + 1 + 1 + 1 + 1) (Below.mono hb0 (by omega))
+    (Below.mono h22 (by omega)) (Below.mono h32 (by omega))) ?_
+  simp only [operations_localLength, selW_localLength]
+  refine cwOps_bind (selW_causal b1 _ _ (n + 1 + 1 + 1 + 1 + 1) (Below.mono hb1 (by omega))
+    (Below.mono (selW_output_below b0 p0.2 p1.2 (n + 1 + 1 + 1) (Below.mono h02 (by omega))
+      (Below.mono h12 (by omega))) (by omega))
+    (Below.mono (selW_output_below b0 p2.2 p3.2 (n + 1 + 1 + 1 + 1) (Below.mono h22 (by omega))
+      (Below.mono h32 (by omega))) (by omega))) ?_
+  simp only [operations_localLength, selW_localLength]
+  exact cwOps_pure _ _
+
+theorem mux4W_output_below (b0 b1 : E) (p0 p1 p2 p3 : Pt) (n : ℕ)
+    (hb0 : Below n b0) (hb1 : Below n b1)
+    (h01 : Below n p0.1) (h02 : Below n p0.2)
+    (h11 : Below n p1.1) (h12 : Below n p1.2)
+    (h21 : Below n p2.1) (h22 : Below n p2.2)
+    (h31 : Below n p3.1) (h32 : Below n p3.2) :
+    Below (n + 6) ((mux4W b0 b1 p0 p1 p2 p3 n).1).1 ∧
+      Below (n + 6) ((mux4W b0 b1 p0 p1 p2 p3 n).1).2 := by
+  have hx := selW_output_below b1 _ _ (n + 2)
+    (Below.mono (selW_output_below b0 p0.1 p1.1 n h01 h11) (by omega))
+    (Below.mono (selW_output_below b0 p2.1 p3.1 (n + 1) (Below.mono h21 (by omega))
+      (Below.mono h31 (by omega))) (by omega))
+  have hy := selW_output_below b1 _ _ (n + 5)
+    (Below.mono (selW_output_below b0 p0.2 p1.2 (n + 3)
+      (Below.mono h02 (by omega)) (Below.mono h12 (by omega))) (by omega))
+    (Below.mono (selW_output_below b0 p2.2 p3.2 (n + 4) (Below.mono h22 (by omega))
+      (Below.mono h32 (by omega))) (by omega))
+  simp only [mux4W, Circuit.bind_output_eq, Circuit.pure_output_eq, selW_localLength]
+  exact ⟨Below.mono hx (by omega), Below.mono hy (by omega)⟩
+
+/-! ## Curve gadgets -/
+
+theorem isOnCurve_causal (x y : E) (n : ℕ) (hx : Below n x) (hy : Below n y) :
+    OpsCausal n ((isOnCurve x y).operations n) := by
+  simp only [isOnCurve]
+  refine cwOps_bind (mat_causal (.mul x x) n (Below.mul hx hx)) ?_
+  simp only [mm, operations_localLength, mat_localLength_eq]
+  exact assertZeroLazy_causal _ _ (Below.sub
+    (Below.mul (Below.mono hy (by omega)) (Below.mono hy (by omega)))
+    (Below.add (Below.add
+      (Below.mul (Below.mono hx (by omega))
+        (mat_output_below (.mul x x) n (Below.mul hx hx)))
+      (Below.sc pa (Below.mono hx (by omega)))) (Below.cst _ _)))
+
+theorem pointEquality_causal (x y z px py : E) (n : ℕ) (hx : Below n x) (hy : Below n y)
+    (hz : Below n z) (hpx : Below n px) (hpy : Below n py) :
+    OpsCausal n ((pointEquality x y z px py).operations n) := by
+  simp only [pointEquality]
+  refine cwOps_bind (mat_causal z n hz) ?_
+  simp only [operations_localLength, mat_localLength_eq]
+  refine cwOps_bind (assertZeroLazy_causal _ _ (Below.sub (Below.mono hx (by omega))
+    (Below.mul (mat_output_below z n hz) (Below.mono hpx (by omega))))) ?_
+  simp only [operations_localLength]
+  exact assertZeroLazy_causal _ _ (Below.sub (Below.mono hy (by omega))
+    (Below.mul (Below.mono (mat_output_below z n hz) (by omega))
+      (Below.mono hpy (by omega))))
+
+/-! ## Affine arithmetic -/
+
+theorem affAdd_causal (p q : Pt) (n : ℕ)
+    (h1 : Below n p.1) (h2 : Below n p.2) (h3 : Below n q.1) (h4 : Below n q.2) :
+    OpsCausal n ((affAdd p q).operations n) := by
+  simp only [affAdd]
+  refine cwOps_bind (nonzero_causal (q.1 - p.1) n (Below.sub h3 h1)) ?_
+  simp only [operations_localLength, nonzero_localLength]
+  refine cwOps_bind (cwOps_witnessField (FBelow.mul
+    (FBelow.expr (Below.sub (Below.mono h4 (by omega)) (Below.mono h2 (by omega))))
+    (FBelow.expr (nonzero_output_below (q.1 - p.1) n)))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega))) (FBelow.expr (Below.var (by omega))))
+    (FBelow.expr (Below.sub (Below.neg (Below.mono h1 (by omega)))
+      (Below.mono h3 (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega)))
+      (FBelow.expr (Below.sub (Below.mono h1 (by omega)) (Below.var (by omega)))))
+    (FBelow.expr (Below.neg (Below.mono h2 (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem affAdd_output_below (p q : Pt) (n : ℕ)
+    (h1 : Below n p.1) (h2 : Below n p.2) (h3 : Below n q.1) (h4 : Below n q.2) :
+    Below (n + 4) ((affAdd p q n).1).1 ∧ Below (n + 4) ((affAdd p q n).1).2 := by
+  simp only [affAdd, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField,
+    Circuit.localLength, bind_snd, pure_snd, witnessField_snd, assertZero_snd,
+    localLength_witness, localLength_assert, Operations.append_localLength,
+    Operations.localLength, nonzero_localLength, Nat.add_zero, Nat.zero_add]
+  exact ⟨Below.var (by omega), Below.var (by omega)⟩
+
+theorem affDouble_causal (p : Pt) (n : ℕ) (h1 : Below n p.1) (h2 : Below n p.2) :
+    OpsCausal n ((affDouble p).operations n) := by
+  simp only [affDouble]
+  refine cwOps_bind (mat_causal (.mul p.1 p.1) n (Below.mul h1 h1)) ?_
+  simp only [mm, operations_localLength, mat_localLength_eq]
+  refine cwOps_bind (cwOps_witnessField (FBelow.mul
+    (FBelow.expr (Below.add (Below.sc 3 (mat_output_below (.mul p.1 p.1) n (Below.mul h1 h1)))
+      (Below.cst _ _)))
+    (FBelow.inv (FBelow.expr (Below.sc 2 (Below.mono h2 (by omega))))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega))) (FBelow.expr (Below.var (by omega))))
+    (FBelow.expr (Below.neg (Below.sc 2 (Below.mono h1 (by omega))))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega)))
+      (FBelow.expr (Below.sub (Below.mono h1 (by omega)) (Below.var (by omega)))))
+    (FBelow.expr (Below.neg (Below.mono h2 (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem affDouble_output_below (p : Pt) (n : ℕ) (hx : deg p.1 = 1)
+    (h1 : Below n p.1) (h2 : Below n p.2) :
+    Below (n + 4) ((affDouble p n).1).1 ∧ Below (n + 4) ((affDouble p n).1).2 := by
+  have hml : matLen (.mul p.1 p.1) = 1 := matLen_mul_of_deg_one hx hx
+  simp only [affDouble, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField,
+    Circuit.localLength, bind_snd, pure_snd, witnessField_snd, assertZero_snd,
+    localLength_witness, localLength_assert, Operations.append_localLength,
+    Operations.localLength, mm, mat_localLength_eq, hml, Nat.add_zero, Nat.zero_add]
+  exact ⟨Below.var (by omega), Below.var (by omega)⟩
+
+theorem elmCore_causal (p q : Pt) (n : ℕ)
+    (h1 : Below n p.1) (h2 : Below n p.2) (h3 : Below n q.1) (h4 : Below n q.2) :
+    OpsCausal n ((elmCore p q).operations n) := by
+  simp only [elmCore]
+  refine cwOps_bind (nonzero_causal (q.1 - p.1) n (Below.sub h3 h1)) ?_
+  simp only [operations_localLength, nonzero_localLength]
+  refine cwOps_bind (cwOps_witnessField (FBelow.mul
+    (FBelow.expr (Below.sub (Below.mono h4 (by omega)) (Below.mono h2 (by omega))))
+    (FBelow.expr (nonzero_output_below (q.1 - p.1) n)))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega))) (FBelow.expr (Below.var (by omega))))
+    (FBelow.expr (Below.sub (Below.neg (Below.mono h1 (by omega)))
+      (Below.mono h3 (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.sc 2 (Below.mono h2 (by omega))))
+      (FBelow.inv (FBelow.expr (Below.sub (Below.mono h1 (by omega)) (Below.var (by omega))))))
+    (FBelow.expr (Below.neg (Below.var (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem elmCore_output_eq (p q : Pt) (n : ℕ) :
+    (elmCore p q n).1 = (Expression.var (F := Fp) ⟨n + 2⟩, Expression.var (F := Fp) ⟨n + 3⟩) :=
+  rfl
+
+theorem elmCore_output_below (p q : Pt) (n : ℕ) :
+    Below (n + 4) ((elmCore p q n).1).1 ∧ Below (n + 4) ((elmCore p q n).1).2 := by
+  simp only [elmCore, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField,
+    Circuit.localLength, bind_snd, pure_snd, witnessField_snd, assertZero_snd,
+    localLength_witness, localLength_assert, Operations.append_localLength,
+    Operations.localLength, nonzero_localLength, Nat.add_zero, Nat.zero_add]
+  exact ⟨Below.var (by omega), Below.var (by omega)⟩
+
+theorem elm_causal (p q : Pt) (n : ℕ)
+    (h1 : Below n p.1) (h2 : Below n p.2) (h3 : Below n q.1) (h4 : Below n q.2) :
+    OpsCausal n ((elm p q).operations n) := by
+  simp only [elm]
+  refine cwOps_bind' (L := 4) (elmCore_localLength p q n)
+    (elmCore_causal p q n h1 h2 h3 h4) ?_
+  rw [elmCore_output_eq]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega))) (FBelow.expr (Below.var (by omega))))
+    (FBelow.expr (Below.sub (Below.neg (Below.mono h1 (by omega)))
+      (Below.var (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  refine cwOps_bind (cwOps_witnessField (FBelow.add
+    (FBelow.mul (FBelow.expr (Below.var (by omega)))
+      (FBelow.expr (Below.sub (Below.mono h1 (by omega)) (Below.var (by omega)))))
+    (FBelow.expr (Below.neg (Below.mono h2 (by omega)))))) ?_
+  simp only [operations_localLength, witnessField_snd, localLength_witness]
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+  exact cwOps_pure _ _
+
+theorem elm_output_eq (p q : Pt) (n : ℕ) :
+    (elm p q n).1 = (Expression.var (F := Fp) ⟨n + 4⟩, Expression.var (F := Fp) ⟨n + 5⟩) :=
+  rfl
+
+theorem elm_output_below (p q : Pt) (n : ℕ) :
+    Below (n + 6) ((elm p q n).1).1 ∧ Below (n + 6) ((elm p q n).1).2 := by
+  simp only [elm, Circuit.bind_output_eq, Circuit.pure_output_eq, output_witnessField,
+    Circuit.localLength, bind_snd, pure_snd, witnessField_snd, assertZero_snd,
+    localLength_witness, localLength_assert, Operations.append_localLength,
+    Operations.localLength, elmCore_localLength, Nat.add_zero, Nat.zero_add]
+  exact ⟨Below.var (by omega), Below.var (by omega)⟩
+
+theorem elmTo_causal (p q target : Pt) (n : ℕ)
+    (h1 : Below n p.1) (h2 : Below n p.2) (h3 : Below n q.1) (h4 : Below n q.2)
+    (h5 : Below n target.1) (h6 : Below n target.2) :
+    OpsCausal n ((elmTo p q target).operations n) := by
+  simp only [elmTo]
+  refine cwOps_bind' (L := 4) (elmCore_localLength p q n)
+    (elmCore_causal p q n h1 h2 h3 h4) ?_
+  refine cwOps_bind (cwOps_assertZero _ _) ?_
+  exact cwOps_assertZero _ _
+
+/-! ## The comparison loop -/
+
+theorem foldl_add_below (a : Nat → E) (hi : Nat) (l : List Nat) (n : ℕ)
+    (ha : ∀ j, Below n (a j)) (s : E) (hs : Below n s) :
+    Below n (l.foldl (fun s j => s + a (hi - j)) s) := by
+  induction l generalizing s with
+  | nil => exact hs
+  | cons x xs ih => simp only [List.foldl_cons]; exact ih _ (Below.add hs (ha _))
+
+theorem addMissing_below (a : Nat → E) (hi lo : Nat) (m : E) (n : ℕ)
+    (ha : ∀ j, Below n (a j)) (hm : Below n m) : Below n (addMissing a hi lo m) := by
+  unfold addMissing
+  exact foldl_add_below (fun j => cst 1 - a j) hi _ n
+    (fun j => Below.sub (Below.cst n 1) (ha j)) m hm
+
+theorem runSum_below (a : Nat → E) (hi lo : Nat) (n : ℕ) (ha : ∀ j, Below n (a j)) :
+    Below n (runSum a hi lo) := by
+  unfold runSum
+  exact foldl_add_below a hi _ n ha (cst 0) (Below.cst n 0)
+
+theorem ltLoop_causal (a : Nat → E) (N : ℕ) (ha : ∀ j, Below N (a j)) :
+    ∀ (missing : E) (l : List (Nat × Nat × Bool)) (n : ℕ), N ≤ n → Below n missing →
+      OpsCausal n ((ltLoop a missing l).operations n) := by
+  intro missing l
+  induction l generalizing missing with
+  | nil => intro n _ _; simp only [ltLoop]; exact cwOps_pure _ _
+  | cons s rest ih =>
+      intro n hn hm
+      obtain ⟨hi, lo, bit⟩ := s
+      cases bit
+      · simp only [ltLoop, Bool.false_eq_true, if_false]
+        refine cwOps_bind (cwOps_witnessField (FBelow.mul
+          (FBelow.expr (runSum_below a hi lo n (fun j => Below.mono (ha j) hn)))
+          (FBelow.inv (FBelow.expr hm)))) ?_
+        simp only [operations_localLength, witnessField_snd, localLength_witness]
+        refine cwOps_bind (cwOps_assertZero _ _) ?_
+        simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+        exact ih missing (n + 1) (by omega) (Below.mono hm (by omega))
+      · simp only [ltLoop, ite_true]
+        exact ih (addMissing a hi lo missing) n hn
+          (addMissing_below a hi lo missing n (fun j => Below.mono (ha j) hn) hm)
+
+theorem ltLoopGuarded_causal (a : Nat → E) (N : ℕ) (ha : ∀ j, Below N (a j)) :
+    ∀ (guard missing : E) (l : List (Nat × Nat × Bool)) (n : ℕ), N ≤ n →
+      Below n guard → Below n missing →
+      OpsCausal n ((ltLoopGuarded a guard missing l).operations n) := by
+  intro guard missing l
+  induction l generalizing missing with
+  | nil => intro n _ _ _; simp only [ltLoopGuarded]; exact cwOps_pure _ _
+  | cons s rest ih =>
+      intro n hn hg hm
+      obtain ⟨hi, lo, bit⟩ := s
+      cases bit
+      · simp only [ltLoopGuarded, Bool.false_eq_true, if_false]
+        refine cwOps_bind (cwOps_witnessField (FBelow.mul
+          (FBelow.expr (runSum_below a hi lo n (fun j => Below.mono (ha j) hn)))
+          (FBelow.inv (FBelow.expr (Below.add (Below.mono hm (by omega))
+            (Below.sub (Below.cst n 1) (Below.mono hg (by omega)))))))) ?_
+        simp only [operations_localLength, witnessField_snd, localLength_witness]
+        refine cwOps_bind (cwOps_assertZero _ _) ?_
+        simp only [operations_localLength, assertZero_snd, localLength_assert, Nat.add_zero]
+        exact ih missing (n + 1) (by omega) (Below.mono hg (by omega))
+          (Below.mono hm (by omega))
+      · simp only [ltLoopGuarded, ite_true]
+        exact ih (addMissing a hi lo missing) n hn hg
+          (addMissing_below a hi lo missing n (fun j => Below.mono (ha j) hn) hm)
+
+theorem assertLtOrderOf_causal (bound : Nat) (a : Nat → E) (N : ℕ)
+    (ha : ∀ j, Below N (a j)) (n : ℕ) (hn : N ≤ n) :
+    OpsCausal n ((assertLtOrderOf bound a).operations n) :=
+  ltLoop_causal a N ha (cst 0) (boundRunsOf bound) n hn (Below.cst n 0)
+
+theorem assertLtOrderGuardedOf_causal (bound : Nat) (guard : E) (a : Nat → E) (N : ℕ)
+    (ha : ∀ j, Below N (a j)) (n : ℕ) (hn : N ≤ n) (hg : Below n guard) :
+    OpsCausal n ((assertLtOrderGuardedOf bound guard a).operations n) :=
+  ltLoopGuarded_causal a N ha guard (cst 0) (boundRunsOf bound) n hn hg (Below.cst n 0)
 
 end StandardECDSA
