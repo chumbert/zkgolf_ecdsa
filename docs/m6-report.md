@@ -298,12 +298,37 @@ and `scripts/check_standard_ecdsa_axioms.py` (51 roots).
 (`Tpt`), which is why every slot coefficient is in `{1,2,3,4}`. This is
 mechanical but large (128 + 255 step inductions) and was not completed.
 
-The crux of that induction is the affine→projective bridge: `GoodOffset`'s
-`Avoids` is stated on `(H.toProjective).toMathlibPoint params …`, whereas the
-denominators are `Expression.eval env …` terms. Turning `x(S) = x(H)` into
-`Hpt = ±(shiftPt.toProjective)` needs `same_x_eq_or_neg` composed with
-`affine_to_projective_on_curve` / `toMathlibPoint` / `Affine.Point.toProjective`.
-That composition is the next brick.
+**G1-b — the affine→projective bridge — DONE**
+(`StandardECDSA/Math/DenominatorBridge.lean`, new, green, axiom-clean, 10 roots).
+`GoodOffset`'s `Avoids` is stated on `(H.toProjective).toMathlibPoint params …`
+in the *projective* group `Grp`, whereas the denominators are field-level
+`Expression.eval env …` statements about `Affine.Point.some` values. The file
+closes the gap:
+
+* `toAff` / `toAff_nsmul` — `Projective.Point.toAffineLift` as a plain function
+  `Grp → Affine.Point Wp`, commuting with `Nat`-multiples;
+* `BadFamily.toAffine` / `BadFamily.avoids_toAffine` — the bad family read in
+  the affine group, with `Avoids` transported verbatim along the additive
+  equivalence `Projective.Point.toAffineAddEquiv`;
+* `some_eq_or_neg_of_X_eq` — **the crux**: two on-curve affine points of P-256
+  with the same `x`-coordinate are equal or negatives (`y_eq_or_neg` composed
+  with `negPt_group`);
+* `nsmul_sub_of_add_eq` and `X_eq_imp_bad` — a vanishing denominator becomes one
+  of the three bad equations `[a-b]H = B₁-B₀`, `[b-a]H = B₀-B₁`,
+  `[a+b]H = -(B₀+B₁)`;
+* `nsmul_ne_of_slot` — reading a slot: `coeff i = c` and `target i = T` give
+  `c • Hpt ≠ T`;
+* `X_ne_of_avoids` — the `Avoids`-level form: if none of the three bad equations
+  holds, `x(P) ≠ x(Q)`;
+* `goodOffset_avoids` / `goodOffset_Z_ne` / `goodOffsetAffinePt` /
+  `goodOffset_avoids_affine` / `goodOffsetAffinePt_eq_some` / `nsOfOnCurve` —
+  the `GoodOffset` entry points, including the identification of the offset's
+  affine image with `Affine.Point.some H.X H.Y`.
+
+**What remains (G1-c).** The two honest-witness inductions
+`P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)` over the 128 fixed-base
+windows and the 256 ladder steps, instantiating `X_ne_of_avoids` once per
+denominator with the concrete `a`, `b`, `B₀`, `B₁` and the three slot indices.
 
 ### G2 — T16 concrete witness environment
 

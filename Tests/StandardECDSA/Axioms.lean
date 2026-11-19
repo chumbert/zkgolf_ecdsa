@@ -37,6 +37,7 @@ import StandardECDSA.Phases.TableSemantics
 import StandardECDSA.Phases.LadderSemantics
 import StandardECDSA.Phases.Cost
 import StandardECDSA.Phases.HonestWitness
+import StandardECDSA.Math.DenominatorBridge
 
 /-! ## End-to-end -/
 
@@ -112,6 +113,16 @@ import StandardECDSA.Phases.HonestWitness
 #print axioms StandardECDSA.Phases.mat_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.affDouble_soundness_of_ulwc
 #print axioms StandardECDSA.Phases.shiftedTables_soundness_of_ulwc
+#print axioms StandardECDSA.Math.some_eq_or_neg_of_X_eq
+#print axioms StandardECDSA.Math.X_eq_imp_bad
+#print axioms StandardECDSA.Math.X_ne_of_avoids
+#print axioms StandardECDSA.Math.nsmul_ne_of_slot
+#print axioms StandardECDSA.Math.BadFamily.avoids_toAffine
+#print axioms StandardECDSA.Math.goodOffset_avoids_affine
+#print axioms StandardECDSA.Math.goodOffsetAffinePt_eq_some
+#print axioms StandardECDSA.Math.nsOfOnCurve
+#print axioms StandardECDSA.Math.nsmul_sub_of_add_eq
+#print axioms StandardECDSA.Math.toAff_nsmul
 #print axioms StandardECDSA.curvePhase_cost
 #print axioms StandardECDSA.bitsPhase_cost
 #print axioms StandardECDSA.cmpPhase_cost
