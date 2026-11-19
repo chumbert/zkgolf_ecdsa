@@ -440,10 +440,27 @@ That two-step rewrite is what the next round should use; the rest of `fbWin_dx`
 `X_ne_of_avoids_sharp` with `a = 0`, `b = 1`, and the final
 `rw [fbMux_eq eb k hk]`) is already in place and type-checks.
 
-**What remains (G1-c).** The two honest-witness inductions
-`P(i) := (A_i = [a_i]H + B_i) ∧ (denominator_i ≠ 0)` over the 128 fixed-base
-windows and the 256 ladder steps, instantiating `X_ne_of_avoids` once per
-denominator with the concrete `a`, `b`, `B₀`, `B₁` and the three slot indices.
+**G1-c, fixed-base windows — DONE (round 26).** `StandardECDSA/Phases/HonestDenominators.lean`
+now proves `fbWin_dx`: for every window `k < 128` and every accumulator `acc`
+satisfying the honest-witness invariant `fbInv`, the `fbMux` output's `x` differs
+from the accumulator's `x`.  The proof instantiates `X_ne_of_avoids_sharp` with
+`a = 0`, `b = 1`, `B₀ = tablePt k d_k`, `B₁ = -shiftPt + [winSum k]G`, reading the
+two bad equations off the concrete family slots `(k, false)` and `(k, true)`.
+
+Three rewrite-order facts were needed and are now recorded in the file:
+
+* the slot targets must be stated with an explicit `show toAff ((famOf …).target …) = _`
+  step, then `rw [famOf_target_apply]` and `simp only [targetOf, toAff_toProjective]`
+  (because `BadFamily.toAffine` is an `abbrev`, `rw [BadFamily.toAffine_target]`
+  no longer matches syntactically);
+* `convert h using 2 <;> abel` blows the heartbeat budget on these terms; the
+  working pattern is `intro heq; refine h ?_; calc … := rfl; _ := heq; _ := by abel`;
+* `digitOf env eb k` must be rewritten with `digitOf_eq env eb k hk` before the
+  `abel` step.
+
+**What remains (G1-c).** `fbShift_dx` (the two `Bool` slots), `hshy` (the `Unit`
+slot, `[2]H ≠ 0` from `card_odd`), the five shifted-table denominators
+`hs1 … hs5`, and the 256-step ladder denominators `hj1`, `hj2`, `hjf1 … hjf4`.
 
 ### G2 — T16 concrete witness environment
 

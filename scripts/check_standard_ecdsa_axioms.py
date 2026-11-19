@@ -102,6 +102,11 @@ REQUIRED = {
     'StandardECDSA.curvePhase_cost',
     'StandardECDSA.bitsPhase_cost',
     'StandardECDSA.cmpPhase_cost',
+    'StandardECDSA.Phases.famOf_avoids_affine',
+    'StandardECDSA.Phases.fbMux_eq',
+    'StandardECDSA.Phases.famOf_target_fbWin_false',
+    'StandardECDSA.Phases.famOf_target_fbWin_true',
+    'StandardECDSA.Phases.fbWin_dx',
 }
 
 

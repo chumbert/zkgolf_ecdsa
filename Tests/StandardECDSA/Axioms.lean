@@ -38,6 +38,7 @@ import StandardECDSA.Phases.LadderSemantics
 import StandardECDSA.Phases.Cost
 import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
+import StandardECDSA.Phases.HonestDenominators
 
 /-! ## End-to-end -/
 
@@ -133,3 +134,8 @@ import StandardECDSA.Math.DenominatorBridge
 #print axioms StandardECDSA.curvePhase_cost
 #print axioms StandardECDSA.bitsPhase_cost
 #print axioms StandardECDSA.cmpPhase_cost
+#print axioms StandardECDSA.Phases.famOf_avoids_affine
+#print axioms StandardECDSA.Phases.fbMux_eq
+#print axioms StandardECDSA.Phases.famOf_target_fbWin_false
+#print axioms StandardECDSA.Phases.famOf_target_fbWin_true
+#print axioms StandardECDSA.Phases.fbWin_dx
