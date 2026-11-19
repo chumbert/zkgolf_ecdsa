@@ -339,7 +339,8 @@ theorem fixedBase_out (h : Pt) (eb : Vector E 256) (n : Nat) :
       = (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
           (fixedBaseBody eb fixedTables)
           (fixedBaseBody_constantLength eb fixedTables)).output (n + 4) := by
-  simp only [fixedBase, Circuit.operations, Circuit.output, affAdd_localLength]
+  show fixedBaseOut h eb n = _
+  exact fixedBaseOut_eq h eb n
 
 
 /-! ## TEST -/

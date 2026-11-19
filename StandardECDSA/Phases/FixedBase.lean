@@ -62,6 +62,30 @@ theorem shiftX_eq : shiftX = StandardECDSA.Math.FixedTables.fixedShift.1 := by
 theorem shiftY_eq : shiftY = StandardECDSA.Math.FixedTables.fixedShift.2 := by
   with_unfolding_all rfl
 
+/-- The output of the 128-window fixed-base fold, sealed behind an
+`@[irreducible]` definition.
+
+`Expression.eval` is a pattern-matching `def`, so any definitional-unfolding
+check that mentions `Expression.eval env ((fixedBase h eb n).1.1)` would `whnf`
+the whole 128-step `foldlRange` and exceed the recursion/heartbeat budget.  By
+returning `fixedBaseOut h eb n` from `fixedBase`, `(fixedBase h eb n).1` reduces
+to the *stuck* term `fixedBaseOut h eb n` in one step, so such checks are cheap.
+The fold is only unfolded where it is actually analysed, via
+`fixedBaseOut_eq`. -/
+@[irreducible] def fixedBaseOut (h : Pt) (eb : Vector E 256) (n : Nat) : Pt :=
+  (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+    (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+    (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).output (n + 4)
+
+/-- Defining equation of `fixedBaseOut`. -/
+theorem fixedBaseOut_eq (h : Pt) (eb : Vector E 256) (n : Nat) :
+    fixedBaseOut h eb n
+      = (Circuit.foldlRange 128 ((affAdd h (cst shiftX, cst (-shiftY))).output n)
+          (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
+          (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)).output (n + 4) := by
+  unfold fixedBaseOut
+  rfl
+
 /-- The fixed-base phase.  `eb` holds the 256 digest bits, least significant
 first.  Returns `ep = H + [E]G` in affine coordinates.
 
@@ -76,6 +100,6 @@ def fixedBase (h : Pt) (eb : Vector E 256) : C Pt := fun n =>
     (fixedBaseBody eb StandardECDSA.Math.FixedTables.fixedTables)
     (fixedBaseBody_constantLength eb StandardECDSA.Math.FixedTables.fixedTables)
     (n + Operations.localLength ops0)
-  (r.1, ops0 ++ r.2)
+  (fixedBaseOut h eb n, ops0 ++ r.2)
 
 end StandardECDSA.Phases
