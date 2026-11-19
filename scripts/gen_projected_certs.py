@@ -164,8 +164,9 @@ def main():
     final.append("theorem small_multiples_ne_zero_aux : ∀ m : ℕ, 0 < m → m < 4 * 1050 → m • G ≠ 0 := by")
     final.append("  intro m hm _")
     final.append("  have h : ∀ fm : Fin 4200, 0 < fm.val → fm.val • G ≠ 0 := by")
-    final.append("    intro fm _")
+    final.append("    intro fm hpos")
     final.append("    fin_cases fm")
+    final.append("    · exact absurd hpos (by simp)")
     for m in range(1, BOUND):
         final.append(f"    · exact kG_ne_{m}")
     final.append("  exact h ⟨m, by omega⟩ hm")

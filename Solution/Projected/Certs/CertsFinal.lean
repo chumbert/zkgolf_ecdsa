@@ -545,8 +545,9 @@ lemma shift_pt_aux : ∃ h, pt shiftX shiftY h = (4 * ((4^128 - 1) / 3)) • G :
 theorem small_multiples_ne_zero_aux : ∀ m : ℕ, 0 < m → m < 4 * 1050 → m • G ≠ 0 := by
   intro m hm _
   have h : ∀ fm : Fin 4200, 0 < fm.val → fm.val • G ≠ 0 := by
-    intro fm _
+    intro fm hpos
     fin_cases fm
+    · exact absurd hpos (by simp)
     · exact kG_ne_1
     · exact kG_ne_2
     · exact kG_ne_3

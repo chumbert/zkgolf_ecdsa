@@ -1,6 +1,6 @@
 # M2 progress report — P-256 constant certificates
 
-Date: 2026-11-17 (session). Branch: `claude-ecdsa-plan`. Status: **in progress, M2a partially verified**.
+Date: 2026-11-17 (session), updated 2026-11-19. Branch: `claude-ecdsa-plan`. Status: **in progress — M5 verified; M2 split into subtasks, Fin 4 case-split verdict done, generator patch in flight**.
 
 ## Work reported on 17 November
 
@@ -64,15 +64,25 @@ independently buildable `CertsTab*` and `CertsK*` modules. `CertsFinal` assemble
 both, and [ConstantCerts](../Solution/Projected/Math/ConstantCerts.lean) imports it.
 Do not repeat the `CertsT0` changes or start with a full rebuild.
 
-**First task: test the case split, not its scale.** The generator splits on
-`Fin 4200` but emits branches for positive multiples starting at 1. This suggests
-a zero-case mismatch; it is not a confirmed build failure. In a scratch Lean
-file, reproduce the same proof shape on `Fin 4` with the positivity hypothesis
-and facts for 1, 2 and 3. Run `lake env lean <scratch-file>`. Check whether
-`fin_cases` leaves a zero goal; if it does, close it from positivity before
-applying the three facts. Record the command and outcome before scaling up.
-If blocked, use the [briefing stop rule](./ecdsa-proof-plan.md#13-briefing-template-for-subagents)
-and switch to independent work such as M5 rather than retrying the full build.
+**First task: test the case split, not its scale.** DONE 2026-11-18 (subagent
+`m2-fin4-test`). The generator splits on `Fin 4200` but emits branches for
+positive multiples starting at 1. Reproduced the proof shape on `Fin 4` in
+scratch files (`/tmp/m2_fin4_naive.lean`, `/tmp/m2_fin4_fixed.lean`), run with
+`lake env lean`. **Verdict: `fin_cases` DOES leave a zero goal** — the naive
+shape fails (`unsolved goals case «3»`, positive facts land on the wrong cases);
+the fixed shape passes:
+
+```lean
+fin_cases i
+· exact absurd hpos (by simp)   -- zero case, closed from positivity
+· exact h1 (by decide)
+· exact h2 (by decide)
+· exact h3 (by decide)
+```
+
+(after `fin_cases`, per-case equalities are `↑⟨k, ⋯⟩ = n`, so `rfl` does not
+typecheck — `by decide` proves them). Both runs ~23 s wall (Mathlib import
+overhead). Next: patch the generator to emit the fixed shape, then scale up.
 
 **Handoff by theorem.** Give each public theorem its own buildable module and
 axiom check, keeping `ConstantCerts` as the aggregate import. These are proposed
@@ -82,9 +92,57 @@ targets, not completed proofs:
 |---|---|---|
 | `table_pt` | C1 fixed-base table entries | Build and axiom check pending |
 | `shift_pt` | C1 initial shift | Build and axiom check pending |
-| `small_multiples_ne_zero` | M3 offset injectivity | Build and axiom check pending; start with `Fin 4` |
+| `small_multiples_ne_zero` | M3 offset injectivity | `Fin 4` case-split verdict done (zero goal confirmed, fixed shape verified); generator patch + `Fin 4200` build pending |
 
 Record each module's build command, elapsed time and `#print axioms` output.
 C1 can use the two verified fixed-base results without waiting for M3's result.
 Close M2 only after all three pass the allowed-axiom audit and
 `lake build Solution.Projected.Math.ConstantCerts` succeeds.
+
+## 18–19 November session (subagent split, M5 done)
+
+M2 was split into small subagent subtasks with per-step reporting (per §13
+briefing template). Subagent model: `mistral-large-4` (session `active_model =
+"large"`); the installed `lean` profile (`leanstral`) was not used.
+
+- **`m2-fin4-test`** (completed): Fin 4 verdict above.
+- **`m2-gen-fix` / `m5-bits`** (failed at turn 1): infrastructure error
+  `[Errno 8] nodename nor servname provided, or not known` — DNS resolution
+  failure when the child called the model API; not a task failure. Network
+  verified reachable afterwards (`curl https://api.mistral.ai/v1/models` → 401).
+  Both were respawned as `m2-gen-fix-r2` / `m5-bits-r2`.
+- **`m5-bits-r2`** (completed, M5 verified): `Solution/Projected/Math/Bits.lean`
+  with all five lemmas proved — `field_sum_eq_natCast`, `nat_sum_lt`,
+  `val_field_sum`, `exists_bool_decomp`, `digest_lift`. `lake build
+  Solution.Projected.Math.Bits` green in 1m23s; `#print axioms` on all five =
+  `[propext, Classical.choice, Quot.sound]`. No sorry/native_decide/axiom; no
+  frozen-interface changes. M5 ready for G8 and C3.
+- **`m2-gen-fix-r2`** (completed 2026-11-19): generator patched — the emitted
+  `small_multiples_ne_zero_aux` now reads `intro fm hpos; fin_cases fm` with the
+  zero case closed by `exact absurd hpos (by simp)` and positive cases by
+  `kG_ne_m`. Regenerated (`13 chunk + 12 tab + 6 kG + 1 final, 5094 blocks`,
+  0.38 s). Single-module validation: `lake build Solution.Projected.Certs.CertsK0`
+  PASS in 9.4 s (deps cached). Warning: `CertsTab0` alone ran >40 min on the
+  `rfl`-heavy tab lemmas — the `CertsTab*` chain is the known bottleneck.
+  No sorry/native_decide/axiom in generated paths (grep clean).
+- **`m2-certs`** (original monolithic agent): interrupted and idle; its
+  uncommitted changes to `scripts/gen_projected_certs.py` and
+  `Solution/Projected/Certs/CertsFinal.lean` remain in the working tree and are
+  the base for `m2-gen-fix-r2`.
+
+**Next subtasks (queued):** build the `CertsK*` chain → axiom-check
+`small_multiples_ne_zero` (zero case now fixed); build the `CertsTab*` chain
+(>40 min for Tab0 alone — run per-file with recorded times) → axiom-check
+`table_pt` / `shift_pt`; final
+`lake build Solution.Projected.Math.ConstantCerts` + full axiom audit to close
+M2.
+
+**Snapshot 2026-11-19 11:57 CET:** `m2-kg-chain` running (CertsK* per-module
+builds + `small_multiples_ne_zero` axiom check); no new Certs oleans in the last
+30 min yet. All other M2 subtasks idle/completed; M5 closed.
+
+**Update 2026-11-19 (later):** `m2-kg-chain` was interrupted at user request
+before reporting — no per-module build table or axiom output was produced, so
+`small_multiples_ne_zero` remains **pending**. M2 pipeline paused; resume by
+respawning the `CertsK*` chain task, then `CertsTab*`, then the final
+`ConstantCerts` assembly + axiom audit.
