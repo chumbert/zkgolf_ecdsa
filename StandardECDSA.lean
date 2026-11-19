@@ -3,3 +3,4 @@ import StandardECDSA.NoLookupSub
 import StandardECDSA.Math.OffsetFamily
 import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
+import StandardECDSA.Witness.Hint
