@@ -48,6 +48,8 @@ import StandardECDSA.Phases.HonestFixedBase
 import StandardECDSA.Phases.HonestLadderPhase
 import StandardECDSA.Phases.HonestLadderJoint
 import StandardECDSA.Witness.HonestShiftedFields
+import StandardECDSA.Witness.HonestLadderFinal
+import StandardECDSA.Witness.HonestLadderDenominators
 
 /-! ## End-to-end -/
 
@@ -275,3 +277,15 @@ import StandardECDSA.Witness.HonestShiftedFields
 #print axioms StandardECDSA.hs5_of_ulwc
 #print axioms StandardECDSA.shiftedTables_soundness_of_main
 #print axioms StandardECDSA.shiftedTables_htab_of_main
+#print axioms StandardECDSA.elmTo_rows_of_group
+#print axioms StandardECDSA.stdV_zero
+#print axioms StandardECDSA.stdV_zero_affine
+#print axioms StandardECDSA.target_eq_of_zero
+#print axioms StandardECDSA.ladAcc_256_eq_target
+#print axioms StandardECDSA.elmToXu_group_of_ulwc
+#print axioms StandardECDSA.jointLadder_final_ulwc
+#print axioms StandardECDSA.hjf1_dx_of_ulwc
+#print axioms StandardECDSA.hjf2_dx_of_ulwc
+#print axioms StandardECDSA.elmTo_rows14_of_ulwc
+#print axioms StandardECDSA.jointLadder_step_ulwc
+#print axioms StandardECDSA.jointLadder_denominators_of_ulwc

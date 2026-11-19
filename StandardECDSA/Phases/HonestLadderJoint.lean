@@ -523,4 +523,97 @@ theorem jointLadder_ladInv_of_ulwc (env : ProverEnvironment Fp) (n : Nat)
   rw [jlAcc_eq_foldl acc0 tables rb sb n j.val j.isLt]
   exact hP j.val (by omega)
 
+set_option linter.constructorNameAsVariable false in
+/-- **The ladder invariant at the final step.**  The same joint induction, read
+at `k = 255` against the `foldlRange` output `jlOut`. -/
+theorem jointLadder_ladInv_255_of_ulwc (env : ProverEnvironment Fp) (n : Nat)
+    (H : AffinePoint K) (hH : H.IsOnCurve params) (Qpt Rpt : Affine.Point Wp)
+    (eb rb sb : Vector E 256) (acc0 : Pt) (tables : Tables) (target : Pt)
+    (hgood : GoodOffset H hH (famOf env.toEnvironment eb rb sb Qpt Rpt))
+    (hw : env.UsesLocalWitnessesCompleteness n
+      ((jointLadder acc0 tables rb sb target).operations n))
+    (hacc0 : ∃ hns : NS (Expression.eval env.toEnvironment acc0.1)
+        (Expression.eval env.toEnvironment acc0.2),
+      Affine.Point.some (Expression.eval env.toEnvironment acc0.1)
+        (Expression.eval env.toEnvironment acc0.2) hns = -goodOffsetAffinePt H hH)
+    (hb : ∀ k : Fin 256,
+      Expression.eval env.toEnvironment (rb.get k) = 0 ∨
+        Expression.eval env.toEnvironment (rb.get k) = 1)
+    (hb' : ∀ k : Fin 256,
+      Expression.eval env.toEnvironment (sb.get k) = 0 ∨
+        Expression.eval env.toEnvironment (sb.get k) = 1)
+    (htab : ∀ (j : Nat) (hj : j < 256) (v w : Fp), (v = 0 ∨ v = 1) → (w = 0 ∨ w = 1) →
+      ∃ hns : NS (if v = 0 then
+            (if w = 0 then Expression.eval env.toEnvironment (tables.x0 j).1
+              else Expression.eval env.toEnvironment (tables.x2 j).1)
+          else (if w = 0 then Expression.eval env.toEnvironment (tables.x1 j).1
+            else Expression.eval env.toEnvironment (tables.x3 j).1))
+          (if v = 0 then
+            (if w = 0 then Expression.eval env.toEnvironment (tables.x0 j).2
+              else Expression.eval env.toEnvironment (tables.x2 j).2)
+          else (if w = 0 then Expression.eval env.toEnvironment (tables.x1 j).2
+            else Expression.eval env.toEnvironment (tables.x3 j).2)),
+        Affine.Point.some _ _ hns
+          = (3 * sigma j) • goodOffsetAffinePt H hH
+            + (if v = 1 then (1 : ℤ) else 0) • Qpt
+            + (if w = 1 then (1 : ℤ) else 0) • Rpt) :
+    ladInv (goodOffsetAffinePt H hH) Qpt Rpt env.toEnvironment rb sb 255
+      (jlOut acc0 tables rb sb n) := by
+  rw [jointLadder_ops] at hw
+  rw [ulwc_append] at hw
+  simp only [jointLadderFold_localLength] at hw
+  obtain ⟨hwfold, -⟩ := hw
+  rw [Circuit.foldlRange.usesLocalWitnesses] at hwfold
+  have hwin : ∀ (j : Nat) (hj : j < 255),
+      env.UsesLocalWitnessesCompleteness (n + j * 12)
+        ((jointLadderBody tables rb sb
+          (Fin.foldl j (fun acc (i : Fin j) =>
+            (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12))
+            acc0) ⟨j, hj⟩).operations (n + j * 12)) := by
+    intro j hj
+    have h := hwfold ⟨j, hj⟩
+    simp only [jointLadderBody_localLength] at h
+    rw [foldlAcc_eq_ladder tables rb sb acc0 n j hj] at h
+    exact h
+  have hstep : ∀ (j : Nat) (hj : j < 255),
+      ladInv (goodOffsetAffinePt H hH) Qpt Rpt env.toEnvironment rb sb j
+        (Fin.foldl j (fun acc (i : Fin j) =>
+          (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12))
+          acc0) →
+      ladInv (goodOffsetAffinePt H hH) Qpt Rpt env.toEnvironment rb sb (j + 1)
+        ((jointLadderBody tables rb sb
+          (Fin.foldl j (fun acc (i : Fin j) =>
+            (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12))
+            acc0) ⟨j, hj⟩).output (n + j * 12)) := by
+    intro j hj hacc
+    have hwj := hwin j hj
+    rw [jointLadderBody_ops, ulwc_append] at hwj
+    simp only [mux4W_localLength] at hwj
+    have hm := mux4W_soundness_of_ulwc _ _ _ _ _ _ env (n + j * 12) hwj.1
+    have hDx := hj1_dx_of_ladInv env.toEnvironment eb rb sb Qpt Rpt H hH hgood tables n
+      hb hb' htab j hj _ hm hacc
+    have hrows := elm_rows123_of_ulwc _ _ env (n + j * 12 + 6) hwj.2 hDx
+    have hDx2 := hj2_dx_of_ladInv env.toEnvironment eb rb sb Qpt Rpt H hH hgood tables n
+      hb hb' htab j hj _ hm hDx hrows.1 hrows.2 hacc
+    have hc := jointLadderBody_soundness_of_ulwc tables rb sb _ ⟨j, hj⟩ env (n + j * 12)
+      hwj.1 hwj.2 hDx hDx2
+    exact jointLadderBody_ladInv_step env.toEnvironment (goodOffsetAffinePt H hH) Qpt Rpt
+      tables rb sb n j hj _ hb hb' htab hacc hc
+  have hP := fin_foldl_inv' (fun acc (i : Fin 255) =>
+      (jointLadderBody tables rb sb acc i).output (n + i.val * 12)) acc0
+    (fun k acc => ladInv (goodOffsetAffinePt H hH) Qpt Rpt env.toEnvironment rb sb k acc)
+    hacc0 hstep
+  have hcl : ∀ i : Fin 255, (jointLadderBody tables rb sb default i).localLength = 12 := by
+    intro i
+    simp only [jointLadderBody, mux4W_localLength, elm_localLength, Circuit.localLength,
+      Operations.append_localLength]
+  have hfold : (Circuit.foldlRange 255 acc0 (jointLadderBody tables rb sb)
+        (jointLadderBody_constantLength tables rb sb)).output n
+      = Fin.foldl 255 (fun acc (i : Fin 255) =>
+          (jointLadderBody tables rb sb acc ⟨i.val, by omega⟩).output (n + i.val * 12)) acc0 := by
+    rw [Circuit.foldlRange.output_eq]
+    simp only [hcl]
+  rw [jlOut_eq, hfold]
+  exact hP 255 (by omega)
+
 end StandardECDSA

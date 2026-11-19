@@ -102,6 +102,19 @@ REQUIRED = {
     'StandardECDSA.hjf3_row',
     'StandardECDSA.hjf4_row',
     'StandardECDSA.jointLadder_denominators',
+    # honest-witness ladder denominators from local witnesses (G2-b close)
+    'StandardECDSA.elmTo_rows_of_group',
+    'StandardECDSA.stdV_zero',
+    'StandardECDSA.stdV_zero_affine',
+    'StandardECDSA.target_eq_of_zero',
+    'StandardECDSA.ladAcc_256_eq_target',
+    'StandardECDSA.elmToXu_group_of_ulwc',
+    'StandardECDSA.jointLadder_final_ulwc',
+    'StandardECDSA.hjf1_dx_of_ulwc',
+    'StandardECDSA.hjf2_dx_of_ulwc',
+    'StandardECDSA.elmTo_rows14_of_ulwc',
+    'StandardECDSA.jointLadder_step_ulwc',
+    'StandardECDSA.jointLadder_denominators_of_ulwc',
     # witness generation
     'StandardECDSA.Witness.generateSeed_complete',
     # group order
