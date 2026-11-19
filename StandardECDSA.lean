@@ -10,3 +10,4 @@ import StandardECDSA.Witness.InputEmbedding
 import StandardECDSA.Phases.HonestFixedBase
 import StandardECDSA.Phases.HonestLadderPhase
 import StandardECDSA.Phases.HonestLadderJoint
+import StandardECDSA.Witness.HonestShiftedFields

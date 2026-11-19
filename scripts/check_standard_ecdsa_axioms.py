@@ -218,6 +218,18 @@ REQUIRED = {
     'StandardECDSA.hj2_dx_of_ladInv',
     'StandardECDSA.jointLadderBody_ladInv_step',
     'StandardECDSA.jointLadder_ladInv_of_ulwc',
+    'StandardECDSA.shiftedTables_honest',
+    'StandardECDSA.main_ulwc_shiftedTables',
+    'StandardECDSA.ns_of_curve_eq',
+    'StandardECDSA.shiftedTables_honest_of_main',
+    'StandardECDSA.hshy_of_ulwc',
+    'StandardECDSA.hs1_of_ulwc',
+    'StandardECDSA.hs2_of_ulwc',
+    'StandardECDSA.hs3_of_ulwc',
+    'StandardECDSA.hs4_of_ulwc',
+    'StandardECDSA.hs5_of_ulwc',
+    'StandardECDSA.shiftedTables_soundness_of_main',
+    'StandardECDSA.shiftedTables_htab_of_main',
 }
 
 
