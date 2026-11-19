@@ -4,3 +4,4 @@ import StandardECDSA.Math.OffsetFamily
 import StandardECDSA.Phases.HonestWitness
 import StandardECDSA.Math.DenominatorBridge
 import StandardECDSA.Witness.Hint
+import StandardECDSA.Witness.HintBridge
