@@ -337,7 +337,32 @@ Two further bricks landed in `DenominatorBridge.lean`:
 * `toAff_toProjective` — `toAff` is a retraction of `Affine.Point.toProjective`,
   which is what turns a family target `B.toProjective` back into `B`.
 
-**Obstruction found (G1-c, slot indexing).** The per-denominator instantiation
+**G1-c step 0 — the `slotEquiv` refactor — DONE.** `Math/OffsetFamily.lean` now
+carries a hand-built index equivalence
+
+```lean
+noncomputable def slotEquiv : SlotIx ≃ Fin 1293
+```
+
+assembled from `finProdBool` (`Fin m × Bool ≃ Fin (m * 2)` via
+`Equiv.prodCongr` + `finProdFinEquiv`), `sumFinCongr`
+(`Fin m ⊕ Fin n ≃ Fin k` via `finSumFinEquiv` + `finCongr`) and
+`Fintype.equivFin` on the two *small* components (`Bool`, `Unit`). `famOf` is
+now indexed by `slotEquiv`, so `famOf_m` is `rfl` and the slot lemmas
+`famOf_coeff_apply` / `famOf_target_apply` are one-line `Equiv.symm_apply_apply`
+rewrites. Naming a slot is now free:
+
+```lean
+example ... : (famOf env eb rb sb Qpt Rpt).coeff
+    (slotEquiv (Sum.inr (Sum.inl ((⟨k, hk⟩ : Fin 128), false)))) = 1 := by
+  rw [famOf_coeff_apply]; rfl
+```
+
+`Fintype.equivFin` on the *large* components (`Fin 128 × Bool`,
+`Fin 256 × Bool`) also exceeds the recursion budget, which is why `finProdBool`
+is needed rather than `Fintype.equivFin (Fin 128 × Bool)`.
+
+**Obstruction found (G1-c, slot indexing) — RESOLVED by the above.** The per-denominator instantiation
 needs to name the family slot, i.e. `Fintype.equivFin SlotIx s`. That term alone
 exceeds the recursion budget:
 

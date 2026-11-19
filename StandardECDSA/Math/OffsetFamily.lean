@@ -186,20 +186,72 @@ noncomputable def targetOf (env : Environment Fp) (eb rb sb : Vector E 256)
 
 /-! ## The family -/
 
+/-! ## An explicit index equivalence
+
+`Fintype.equivFin SlotIx` cannot be used to *name* a slot: forming
+`Fin (Fintype.card SlotIx)` forces the elaborator to reduce the `Fintype.card`
+instance through the six-way nested `Sum`/`Prod`/`Fin` chain, which exceeds the
+default recursion budget.  The equivalence below is built by hand from
+`finProdFinEquiv` / `finSumFinEquiv` / `finCongr`, so naming a slot is free. -/
+
+/-- `Fin m × Bool ≃ Fin (m * 2)`. -/
+noncomputable def finProdBool (m : Nat) : Fin m × Bool ≃ Fin (m * 2) :=
+  (Equiv.refl (Fin m)).prodCongr (Fintype.equivFin Bool) |>.trans finProdFinEquiv
+
+/-- `Fin m ⊕ Fin n ≃ Fin k` when `m + n = k`. -/
+noncomputable def sumFinCongr {m n k : Nat} (h : m + n = k) : Fin m ⊕ Fin n ≃ Fin k :=
+  finSumFinEquiv.trans (finCongr h)
+
+/-- **An explicit index equivalence for the slot type.** -/
+noncomputable def slotEquiv : SlotIx ≃ Fin 1293 :=
+  (Equiv.sumCongr (Fintype.equivFin Bool)
+    (Equiv.sumCongr (finProdBool 128 |>.trans (finCongr (show 128 * 2 = 256 from by norm_num)))
+      (Equiv.sumCongr (Fintype.equivFin Unit)
+        (Equiv.sumCongr (finProdBool 5 |>.trans (finCongr (show 5 * 2 = 10 from by norm_num)))
+          (Equiv.sumCongr (finProdBool 256 |>.trans (finCongr (show 256 * 2 = 512 from by norm_num)))
+            (finProdBool 256 |>.trans (finCongr (show 256 * 2 = 512 from by norm_num))))))))
+  |>.trans (Equiv.sumCongr (Equiv.refl (Fin 2))
+    (Equiv.sumCongr (Equiv.refl (Fin 256))
+      (Equiv.sumCongr (Equiv.refl (Fin 1))
+        (Equiv.sumCongr (Equiv.refl (Fin 10))
+          (sumFinCongr (show 512 + 512 = 1024 from by norm_num))))))
+  |>.trans (Equiv.sumCongr (Equiv.refl (Fin 2))
+    (Equiv.sumCongr (Equiv.refl (Fin 256))
+      (Equiv.sumCongr (Equiv.refl (Fin 1))
+        (sumFinCongr (show 10 + 1024 = 1034 from by norm_num)))))
+  |>.trans (Equiv.sumCongr (Equiv.refl (Fin 2))
+    (Equiv.sumCongr (Equiv.refl (Fin 256))
+      (sumFinCongr (show 1 + 1034 = 1035 from by norm_num))))
+  |>.trans (Equiv.sumCongr (Equiv.refl (Fin 2))
+    (sumFinCongr (show 256 + 1035 = 1291 from by norm_num)))
+  |>.trans (sumFinCongr (show 2 + 1291 = 1293 from by norm_num))
+
 /-- **The concrete bad-equation family of the standard circuit.** -/
 noncomputable def famOf (env : Environment Fp) (eb rb sb : Vector E 256)
     (Qpt Rpt : Affine.Point Wp) : BadFamily Grp where
-  m := Fintype.card SlotIx
-  coeff := fun i => coeffOf ((Fintype.equivFin SlotIx).symm i)
+  m := 1293
+  coeff := fun i => coeffOf (slotEquiv.symm i)
   coeff_pos := fun i => coeffOf_pos _
   coeff_lt := fun i => coeffOf_lt _
-  target := fun i => targetOf env eb rb sb Qpt Rpt ((Fintype.equivFin SlotIx).symm i)
+  target := fun i => targetOf env eb rb sb Qpt Rpt (slotEquiv.symm i)
+
+/-- The coefficient of the slot `s`. -/
+theorem famOf_coeff_apply (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) (s : SlotIx) :
+    (famOf env eb rb sb Qpt Rpt).coeff (slotEquiv s) = coeffOf s := by
+  show coeffOf (slotEquiv.symm (slotEquiv s)) = coeffOf s
+  rw [Equiv.symm_apply_apply]
+
+/-- The target of the slot `s`. -/
+theorem famOf_target_apply (env : Environment Fp) (eb rb sb : Vector E 256)
+    (Qpt Rpt : Affine.Point Wp) (s : SlotIx) :
+    (famOf env eb rb sb Qpt Rpt).target (slotEquiv s) = targetOf env eb rb sb Qpt Rpt s := by
+  show targetOf env eb rb sb Qpt Rpt (slotEquiv.symm (slotEquiv s)) = _
+  rw [Equiv.symm_apply_apply]
 
 /-- The family has exactly 1,293 slots. -/
 theorem famOf_m (env : Environment Fp) (eb rb sb : Vector E 256)
-    (Qpt Rpt : Affine.Point Wp) : (famOf env eb rb sb Qpt Rpt).m = 1293 := by
-  simp only [famOf, SlotIx, Fintype.card_sum, Fintype.card_prod, Fintype.card_fin,
-    Fintype.card_bool, Fintype.card_unit]
+    (Qpt Rpt : Affine.Point Wp) : (famOf env eb rb sb Qpt Rpt).m = 1293 := rfl
 
 /-- The family size is exactly one below the candidate count, so the counting
 argument of `exists_goodOffset` applies with no slack. -/
