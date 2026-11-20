@@ -1,4 +1,4 @@
-import Solution.Projected.Certs.CertsFinal
+import Solution.Projected.Math.TableCert
 import Solution.Projected.Math.ShiftCert
 import Solution.Projected.Math.SmallMultiples
 
@@ -8,14 +8,9 @@ namespace Solution.Projected
 
 open Challenge.Specs.ECDSAP256
 
--- N_H and small_multiples_ne_zero are now imported from SmallMultiples
--- (previously redeclared here)
-
-theorem table_pt (i : Fin 128) (d : Fin 4) :
-    ∃ h, pt (tableX i d) (tableY i d) h = ((4 + d.val) * 4^i.val) • G :=
-  table_pt_aux i d
-
--- shift_pt is imported from ShiftCert (not redeclared here)
+-- table_pt is imported from TableCert
+-- shift_pt is imported from ShiftCert
+-- small_multiples_ne_zero is imported from SmallMultiples
 
 end Solution.Projected
 

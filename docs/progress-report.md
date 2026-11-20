@@ -1,6 +1,6 @@
 # M2 progress report — P-256 constant certificates
 
-Updated 2026-11-20. Branch: `claude-ecdsa-plan`. **The 43-entry pilot is restored, builds from the working tree, and is reproducible with the repaired generator.** A separate authorized restoration resolved the working-copy mismatch. `shift_pt` and `small_multiples_ne_zero` are independently verified. S5 has not started; the public `table_pt` theorem and aggregate M2 build/audit remain unverified. See the [pilot restoration](#20-november--pilot-restoration); earlier strict verdicts describe their original attempts.
+Updated 2026-11-20. Branch: `claude-ecdsa-plan`. **All three public M2 theorems are now independently verified in their standalone modules.** S5's full 512-entry `table_pt` builds, reproduces and passes its axiom audit. The S5 retry's strict verdict is blocked on preservation of the first attempt's audit driver, not on the mathematics. S6 has not been run by the orchestrator; the aggregate M2 acceptance check is outstanding. See the [S5 results](#20-november--s5-results); earlier entries describe their respective snapshots.
 
 ## Work reported on 17 November
 
@@ -375,3 +375,34 @@ Before/after project hashes show that the prover changed only `Solution/Projecte
 The independent `lake build Solution.Projected.Certs.CertsTab0` passed in 2.438 s (cached); a separate fresh compile of the restored source passed in 3.327 s with existing dependencies. The endpoint audit passed in 2.683 s: `Solution.Projected.tab_pt_0_0` and `Solution.Projected.tab_pt_10_2` both use exactly `[propext, Classical.choice, Quot.sound]`. The step scans found no `sorry` or forbidden proof construct, and no `AGENT-SORRY` markers were found in project Lean sources. Evidence: `.lean-agent/S4-pilot-restore/`.
 
 The pilot build and reproducibility conditions now hold in the working tree. This resolves the practical S4 blocker without changing its historical verdict. Cumulative prover time including both supplemental assignments is **11,265 s (3h07m45s)**; S2 remains the slowest step. S5 and S6 have not run, and the overall circuit goal is not yet verified.
+
+## 20 November — S5 results
+
+**Proof:** [`Solution.Projected.table_pt`](../Solution/Projected/Math/TableCert.lean#L23) is verified for each `i : Fin 128` and `d : Fin 4`. The point uses the actual `tableX i d` and `tableY i d`, and the scalar is the unreduced natural number `(4 + d.val) * 4^i.val`. There are no additional hypotheses. The theorem does not depend on the small-multiple assembly or `CertsFinal`.
+
+S5 resumed at HEAD `81552c4df860c233aa437f5480c1ee84d79a73fb` after the user committed previous results. Model, toolchain, plan and frozen step list remained as recorded above. The existing untracked `opencode.json` was preserved.
+
+| Step / attempt | Verdict | Sorries in scope | Wall time (end − start) | Retried | Over time limit |
+|---|---|---:|---:|---|---|
+| S5 first attempt | blocked: `CertsTab1` stalled, no build or axiom result for `table_pt` | 0 | 6,450 s (1h47m30s) | Yes | Yes, 1h02m30s |
+| S5 retry | blocked: prior evidence not preserved; **proof verified** | 0 | 430 s (7m10s) | Only retry | No |
+
+The first attempt drafted the public declaration but left the generator's fast proof restricted to Tab0. It was still compiling Tab1 more than an hour past its deadline when interrupted. Independent bounded builds timed out on `CertsTab1` and `TableCert`, and the audit reported the missing `.olean`. The time limit should have been enforced earlier. A separate 45-minute external cutoff was armed for the retry and disarmed on its return.
+
+The retry generalized the pilot proof in the maintained generator to all entries. I compared the **512 point statements and 512 coordinate equalities** against their pre-S5 signatures and module assignments; all were unchanged. The public proof dispatches to each expected entry exactly once. The pilot's bytes remain unchanged. Generating all 32 certificate files in a fresh staging directory reproduced the complete working generated directory byte for byte.
+
+| Independent retry check | Result | Wall time |
+|---|---|---:|
+| Individual `lake build` for `CertsTab0`–`CertsTab11`, in order | all 12 passed, cached | 2.338–2.538 s each |
+| Fresh source compilation, one new `.olean` per table module | all 12 passed with dependencies cached | 39.958 s total |
+| `lake build Solution.Projected.Math.TableCert` | passed, cached | 2.428 s |
+| Fresh source compilation of `TableCert` | passed | 4.828 s |
+| `lake env lean .lean-agent/S5-retry/Audit.lean`, importing only `TableCert` | passed; named root checked | 2.463 s |
+
+```text
+'Solution.Projected.table_pt' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+No step `sorry` or forbidden proof constructs were found. No remaining `AGENT-SORRY` markers were found in project Lean sources (excluding cache and experiment evidence). All versionable changes were within the step's allowlist. **Strict workflow failure:** `.lean-agent/S5/Audit.lean` was present before the retry and absent afterwards, contrary to the no-changes-to-prior-evidence rule. The retry's allowed `.lean-agent/S5-retry/Audit.lean` has precisely the missing file's SHA-256, `9b9ecfd15c19b6f70bbe12c0d325444c2cdb0a94d9558784272c253873c4676e`. No proof repair is needed; no third attempt was made. The prover also reported building `ConstantCerts`, contrary to the S5 brief; its aggregate claims are not accepted as an independent S6 build or audit.
+
+**Cumulative totals:** five numbered steps attempted, **2 done, 0 partial, 3 blocked** by their historical strict verdicts, including verified mathematical results with workflow failures. Eight numbered attempts, three retries, three overruns. Numbered steps account for 17,285 s (4h48m05s); with the two supplemental assignments, total prover time is **18,145 s (5h02m25s)**. **S5 was the slowest step** at 6,880 s (1h54m40s) across its two attempts. Times exclude setup and independent verification. Evidence is under `.lean-agent/S5/` and `S5-retry/` (including `checks.txt`, all per-target timings, the source/manifest review and verdicts). S6 has not started. A clean full-M2 time and the overall sorry-free, axiom-clean circuit goal remain unverified.

@@ -146,16 +146,11 @@ def main():
     # (chained tail files serialize the build), plus one final assembler file
     tab_lemmas = []
     tab_entries = sorted(tab.items())
-    # First 43 pairs go to CertsTab0, use NEW proof technique (pilot-only rollout per S4)
-    # Remaining pairs keep OLD technique to preserve byte-identical output for other files
+    # All pairs use the fast proof technique (verified in S4 pilot)
     for idx, ((i, d), tname) in enumerate(tab_entries):
         tab_lemmas.append(f"lemma tab_{i}_{d} : tableX {i} {d} = {tname}_x ∧ tableY {i} {d} = {tname}_y := by constructor <;> rfl")
-        if idx < 43:  # First 43 pairs for CertsTab0
-            tab_lemmas.append(f"lemma tab_pt_{i}_{d} : ∃ h, pt (tableX {i} {d}) (tableY {i} {d}) h = ((4 + {d}) * 4^{i}) • G := by")
-            tab_lemmas.append(f"  use {tname}_curve; show pt (tableX {i} {d}) (tableY {i} {d}) {tname}_curve = _; show pt {tname}_x {tname}_y {tname}_curve = _; exact {tname}_scalar")
-        else:  # Rest use OLD technique
-            tab_lemmas.append(f"lemma tab_pt_{i}_{d} : ∃ h, pt (tableX {i} {d}) (tableY {i} {d}) h = ((4 + {d}) * 4^{i}) • G :=")
-            tab_lemmas.append(f"  ⟨{tname}_curve, by rw [tab_{i}_{d}.1, tab_{i}_{d}.2]; exact {tname}_scalar⟩")
+        tab_lemmas.append(f"lemma tab_pt_{i}_{d} : ∃ h, pt (tableX {i} {d}) (tableY {i} {d}) h = ((4 + {d}) * 4^{i}) • G := by")
+        tab_lemmas.append(f"  use {tname}_curve; show pt (tableX {i} {d}) (tableY {i} {d}) {tname}_curve = _; show pt {tname}_x {tname}_y {tname}_curve = _; exact {tname}_scalar")
     kG_lemmas = []
     for m in range(1, BOUND):
         kG_lemmas.append(f"lemma kG_ne_{m} : ({m} : ℕ) • G ≠ 0 := fun h => pt_ne_zero {kname[m]}_curve ({kname[m]}_scalar.trans h)")

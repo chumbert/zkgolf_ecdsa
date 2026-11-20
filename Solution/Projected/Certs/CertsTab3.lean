@@ -9,132 +9,132 @@ namespace Solution.Projected
 open Challenge.Specs.ECDSAP256
 
 lemma tab_32_1 : tableX 32 1 = cT196_x ∧ tableY 32 1 = cT196_y := by constructor <;> rfl
-lemma tab_pt_32_1 : ∃ h, pt (tableX 32 1) (tableY 32 1) h = ((4 + 1) * 4^32) • G :=
-  ⟨cT196_curve, by rw [tab_32_1.1, tab_32_1.2]; exact cT196_scalar⟩
+lemma tab_pt_32_1 : ∃ h, pt (tableX 32 1) (tableY 32 1) h = ((4 + 1) * 4^32) • G := by
+  use cT196_curve; show pt (tableX 32 1) (tableY 32 1) cT196_curve = _; show pt cT196_x cT196_y cT196_curve = _; exact cT196_scalar
 lemma tab_32_2 : tableX 32 2 = cT197_x ∧ tableY 32 2 = cT197_y := by constructor <;> rfl
-lemma tab_pt_32_2 : ∃ h, pt (tableX 32 2) (tableY 32 2) h = ((4 + 2) * 4^32) • G :=
-  ⟨cT197_curve, by rw [tab_32_2.1, tab_32_2.2]; exact cT197_scalar⟩
+lemma tab_pt_32_2 : ∃ h, pt (tableX 32 2) (tableY 32 2) h = ((4 + 2) * 4^32) • G := by
+  use cT197_curve; show pt (tableX 32 2) (tableY 32 2) cT197_curve = _; show pt cT197_x cT197_y cT197_curve = _; exact cT197_scalar
 lemma tab_32_3 : tableX 32 3 = cT198_x ∧ tableY 32 3 = cT198_y := by constructor <;> rfl
-lemma tab_pt_32_3 : ∃ h, pt (tableX 32 3) (tableY 32 3) h = ((4 + 3) * 4^32) • G :=
-  ⟨cT198_curve, by rw [tab_32_3.1, tab_32_3.2]; exact cT198_scalar⟩
+lemma tab_pt_32_3 : ∃ h, pt (tableX 32 3) (tableY 32 3) h = ((4 + 3) * 4^32) • G := by
+  use cT198_curve; show pt (tableX 32 3) (tableY 32 3) cT198_curve = _; show pt cT198_x cT198_y cT198_curve = _; exact cT198_scalar
 lemma tab_33_0 : tableX 33 0 = cB200_x ∧ tableY 33 0 = cB200_y := by constructor <;> rfl
-lemma tab_pt_33_0 : ∃ h, pt (tableX 33 0) (tableY 33 0) h = ((4 + 0) * 4^33) • G :=
-  ⟨cB200_curve, by rw [tab_33_0.1, tab_33_0.2]; exact cB200_scalar⟩
+lemma tab_pt_33_0 : ∃ h, pt (tableX 33 0) (tableY 33 0) h = ((4 + 0) * 4^33) • G := by
+  use cB200_curve; show pt (tableX 33 0) (tableY 33 0) cB200_curve = _; show pt cB200_x cB200_y cB200_curve = _; exact cB200_scalar
 lemma tab_33_1 : tableX 33 1 = cT202_x ∧ tableY 33 1 = cT202_y := by constructor <;> rfl
-lemma tab_pt_33_1 : ∃ h, pt (tableX 33 1) (tableY 33 1) h = ((4 + 1) * 4^33) • G :=
-  ⟨cT202_curve, by rw [tab_33_1.1, tab_33_1.2]; exact cT202_scalar⟩
+lemma tab_pt_33_1 : ∃ h, pt (tableX 33 1) (tableY 33 1) h = ((4 + 1) * 4^33) • G := by
+  use cT202_curve; show pt (tableX 33 1) (tableY 33 1) cT202_curve = _; show pt cT202_x cT202_y cT202_curve = _; exact cT202_scalar
 lemma tab_33_2 : tableX 33 2 = cT203_x ∧ tableY 33 2 = cT203_y := by constructor <;> rfl
-lemma tab_pt_33_2 : ∃ h, pt (tableX 33 2) (tableY 33 2) h = ((4 + 2) * 4^33) • G :=
-  ⟨cT203_curve, by rw [tab_33_2.1, tab_33_2.2]; exact cT203_scalar⟩
+lemma tab_pt_33_2 : ∃ h, pt (tableX 33 2) (tableY 33 2) h = ((4 + 2) * 4^33) • G := by
+  use cT203_curve; show pt (tableX 33 2) (tableY 33 2) cT203_curve = _; show pt cT203_x cT203_y cT203_curve = _; exact cT203_scalar
 lemma tab_33_3 : tableX 33 3 = cT204_x ∧ tableY 33 3 = cT204_y := by constructor <;> rfl
-lemma tab_pt_33_3 : ∃ h, pt (tableX 33 3) (tableY 33 3) h = ((4 + 3) * 4^33) • G :=
-  ⟨cT204_curve, by rw [tab_33_3.1, tab_33_3.2]; exact cT204_scalar⟩
+lemma tab_pt_33_3 : ∃ h, pt (tableX 33 3) (tableY 33 3) h = ((4 + 3) * 4^33) • G := by
+  use cT204_curve; show pt (tableX 33 3) (tableY 33 3) cT204_curve = _; show pt cT204_x cT204_y cT204_curve = _; exact cT204_scalar
 lemma tab_34_0 : tableX 34 0 = cB206_x ∧ tableY 34 0 = cB206_y := by constructor <;> rfl
-lemma tab_pt_34_0 : ∃ h, pt (tableX 34 0) (tableY 34 0) h = ((4 + 0) * 4^34) • G :=
-  ⟨cB206_curve, by rw [tab_34_0.1, tab_34_0.2]; exact cB206_scalar⟩
+lemma tab_pt_34_0 : ∃ h, pt (tableX 34 0) (tableY 34 0) h = ((4 + 0) * 4^34) • G := by
+  use cB206_curve; show pt (tableX 34 0) (tableY 34 0) cB206_curve = _; show pt cB206_x cB206_y cB206_curve = _; exact cB206_scalar
 lemma tab_34_1 : tableX 34 1 = cT208_x ∧ tableY 34 1 = cT208_y := by constructor <;> rfl
-lemma tab_pt_34_1 : ∃ h, pt (tableX 34 1) (tableY 34 1) h = ((4 + 1) * 4^34) • G :=
-  ⟨cT208_curve, by rw [tab_34_1.1, tab_34_1.2]; exact cT208_scalar⟩
+lemma tab_pt_34_1 : ∃ h, pt (tableX 34 1) (tableY 34 1) h = ((4 + 1) * 4^34) • G := by
+  use cT208_curve; show pt (tableX 34 1) (tableY 34 1) cT208_curve = _; show pt cT208_x cT208_y cT208_curve = _; exact cT208_scalar
 lemma tab_34_2 : tableX 34 2 = cT209_x ∧ tableY 34 2 = cT209_y := by constructor <;> rfl
-lemma tab_pt_34_2 : ∃ h, pt (tableX 34 2) (tableY 34 2) h = ((4 + 2) * 4^34) • G :=
-  ⟨cT209_curve, by rw [tab_34_2.1, tab_34_2.2]; exact cT209_scalar⟩
+lemma tab_pt_34_2 : ∃ h, pt (tableX 34 2) (tableY 34 2) h = ((4 + 2) * 4^34) • G := by
+  use cT209_curve; show pt (tableX 34 2) (tableY 34 2) cT209_curve = _; show pt cT209_x cT209_y cT209_curve = _; exact cT209_scalar
 lemma tab_34_3 : tableX 34 3 = cT210_x ∧ tableY 34 3 = cT210_y := by constructor <;> rfl
-lemma tab_pt_34_3 : ∃ h, pt (tableX 34 3) (tableY 34 3) h = ((4 + 3) * 4^34) • G :=
-  ⟨cT210_curve, by rw [tab_34_3.1, tab_34_3.2]; exact cT210_scalar⟩
+lemma tab_pt_34_3 : ∃ h, pt (tableX 34 3) (tableY 34 3) h = ((4 + 3) * 4^34) • G := by
+  use cT210_curve; show pt (tableX 34 3) (tableY 34 3) cT210_curve = _; show pt cT210_x cT210_y cT210_curve = _; exact cT210_scalar
 lemma tab_35_0 : tableX 35 0 = cB212_x ∧ tableY 35 0 = cB212_y := by constructor <;> rfl
-lemma tab_pt_35_0 : ∃ h, pt (tableX 35 0) (tableY 35 0) h = ((4 + 0) * 4^35) • G :=
-  ⟨cB212_curve, by rw [tab_35_0.1, tab_35_0.2]; exact cB212_scalar⟩
+lemma tab_pt_35_0 : ∃ h, pt (tableX 35 0) (tableY 35 0) h = ((4 + 0) * 4^35) • G := by
+  use cB212_curve; show pt (tableX 35 0) (tableY 35 0) cB212_curve = _; show pt cB212_x cB212_y cB212_curve = _; exact cB212_scalar
 lemma tab_35_1 : tableX 35 1 = cT214_x ∧ tableY 35 1 = cT214_y := by constructor <;> rfl
-lemma tab_pt_35_1 : ∃ h, pt (tableX 35 1) (tableY 35 1) h = ((4 + 1) * 4^35) • G :=
-  ⟨cT214_curve, by rw [tab_35_1.1, tab_35_1.2]; exact cT214_scalar⟩
+lemma tab_pt_35_1 : ∃ h, pt (tableX 35 1) (tableY 35 1) h = ((4 + 1) * 4^35) • G := by
+  use cT214_curve; show pt (tableX 35 1) (tableY 35 1) cT214_curve = _; show pt cT214_x cT214_y cT214_curve = _; exact cT214_scalar
 lemma tab_35_2 : tableX 35 2 = cT215_x ∧ tableY 35 2 = cT215_y := by constructor <;> rfl
-lemma tab_pt_35_2 : ∃ h, pt (tableX 35 2) (tableY 35 2) h = ((4 + 2) * 4^35) • G :=
-  ⟨cT215_curve, by rw [tab_35_2.1, tab_35_2.2]; exact cT215_scalar⟩
+lemma tab_pt_35_2 : ∃ h, pt (tableX 35 2) (tableY 35 2) h = ((4 + 2) * 4^35) • G := by
+  use cT215_curve; show pt (tableX 35 2) (tableY 35 2) cT215_curve = _; show pt cT215_x cT215_y cT215_curve = _; exact cT215_scalar
 lemma tab_35_3 : tableX 35 3 = cT216_x ∧ tableY 35 3 = cT216_y := by constructor <;> rfl
-lemma tab_pt_35_3 : ∃ h, pt (tableX 35 3) (tableY 35 3) h = ((4 + 3) * 4^35) • G :=
-  ⟨cT216_curve, by rw [tab_35_3.1, tab_35_3.2]; exact cT216_scalar⟩
+lemma tab_pt_35_3 : ∃ h, pt (tableX 35 3) (tableY 35 3) h = ((4 + 3) * 4^35) • G := by
+  use cT216_curve; show pt (tableX 35 3) (tableY 35 3) cT216_curve = _; show pt cT216_x cT216_y cT216_curve = _; exact cT216_scalar
 lemma tab_36_0 : tableX 36 0 = cB218_x ∧ tableY 36 0 = cB218_y := by constructor <;> rfl
-lemma tab_pt_36_0 : ∃ h, pt (tableX 36 0) (tableY 36 0) h = ((4 + 0) * 4^36) • G :=
-  ⟨cB218_curve, by rw [tab_36_0.1, tab_36_0.2]; exact cB218_scalar⟩
+lemma tab_pt_36_0 : ∃ h, pt (tableX 36 0) (tableY 36 0) h = ((4 + 0) * 4^36) • G := by
+  use cB218_curve; show pt (tableX 36 0) (tableY 36 0) cB218_curve = _; show pt cB218_x cB218_y cB218_curve = _; exact cB218_scalar
 lemma tab_36_1 : tableX 36 1 = cT220_x ∧ tableY 36 1 = cT220_y := by constructor <;> rfl
-lemma tab_pt_36_1 : ∃ h, pt (tableX 36 1) (tableY 36 1) h = ((4 + 1) * 4^36) • G :=
-  ⟨cT220_curve, by rw [tab_36_1.1, tab_36_1.2]; exact cT220_scalar⟩
+lemma tab_pt_36_1 : ∃ h, pt (tableX 36 1) (tableY 36 1) h = ((4 + 1) * 4^36) • G := by
+  use cT220_curve; show pt (tableX 36 1) (tableY 36 1) cT220_curve = _; show pt cT220_x cT220_y cT220_curve = _; exact cT220_scalar
 lemma tab_36_2 : tableX 36 2 = cT221_x ∧ tableY 36 2 = cT221_y := by constructor <;> rfl
-lemma tab_pt_36_2 : ∃ h, pt (tableX 36 2) (tableY 36 2) h = ((4 + 2) * 4^36) • G :=
-  ⟨cT221_curve, by rw [tab_36_2.1, tab_36_2.2]; exact cT221_scalar⟩
+lemma tab_pt_36_2 : ∃ h, pt (tableX 36 2) (tableY 36 2) h = ((4 + 2) * 4^36) • G := by
+  use cT221_curve; show pt (tableX 36 2) (tableY 36 2) cT221_curve = _; show pt cT221_x cT221_y cT221_curve = _; exact cT221_scalar
 lemma tab_36_3 : tableX 36 3 = cT222_x ∧ tableY 36 3 = cT222_y := by constructor <;> rfl
-lemma tab_pt_36_3 : ∃ h, pt (tableX 36 3) (tableY 36 3) h = ((4 + 3) * 4^36) • G :=
-  ⟨cT222_curve, by rw [tab_36_3.1, tab_36_3.2]; exact cT222_scalar⟩
+lemma tab_pt_36_3 : ∃ h, pt (tableX 36 3) (tableY 36 3) h = ((4 + 3) * 4^36) • G := by
+  use cT222_curve; show pt (tableX 36 3) (tableY 36 3) cT222_curve = _; show pt cT222_x cT222_y cT222_curve = _; exact cT222_scalar
 lemma tab_37_0 : tableX 37 0 = cB224_x ∧ tableY 37 0 = cB224_y := by constructor <;> rfl
-lemma tab_pt_37_0 : ∃ h, pt (tableX 37 0) (tableY 37 0) h = ((4 + 0) * 4^37) • G :=
-  ⟨cB224_curve, by rw [tab_37_0.1, tab_37_0.2]; exact cB224_scalar⟩
+lemma tab_pt_37_0 : ∃ h, pt (tableX 37 0) (tableY 37 0) h = ((4 + 0) * 4^37) • G := by
+  use cB224_curve; show pt (tableX 37 0) (tableY 37 0) cB224_curve = _; show pt cB224_x cB224_y cB224_curve = _; exact cB224_scalar
 lemma tab_37_1 : tableX 37 1 = cT226_x ∧ tableY 37 1 = cT226_y := by constructor <;> rfl
-lemma tab_pt_37_1 : ∃ h, pt (tableX 37 1) (tableY 37 1) h = ((4 + 1) * 4^37) • G :=
-  ⟨cT226_curve, by rw [tab_37_1.1, tab_37_1.2]; exact cT226_scalar⟩
+lemma tab_pt_37_1 : ∃ h, pt (tableX 37 1) (tableY 37 1) h = ((4 + 1) * 4^37) • G := by
+  use cT226_curve; show pt (tableX 37 1) (tableY 37 1) cT226_curve = _; show pt cT226_x cT226_y cT226_curve = _; exact cT226_scalar
 lemma tab_37_2 : tableX 37 2 = cT227_x ∧ tableY 37 2 = cT227_y := by constructor <;> rfl
-lemma tab_pt_37_2 : ∃ h, pt (tableX 37 2) (tableY 37 2) h = ((4 + 2) * 4^37) • G :=
-  ⟨cT227_curve, by rw [tab_37_2.1, tab_37_2.2]; exact cT227_scalar⟩
+lemma tab_pt_37_2 : ∃ h, pt (tableX 37 2) (tableY 37 2) h = ((4 + 2) * 4^37) • G := by
+  use cT227_curve; show pt (tableX 37 2) (tableY 37 2) cT227_curve = _; show pt cT227_x cT227_y cT227_curve = _; exact cT227_scalar
 lemma tab_37_3 : tableX 37 3 = cT228_x ∧ tableY 37 3 = cT228_y := by constructor <;> rfl
-lemma tab_pt_37_3 : ∃ h, pt (tableX 37 3) (tableY 37 3) h = ((4 + 3) * 4^37) • G :=
-  ⟨cT228_curve, by rw [tab_37_3.1, tab_37_3.2]; exact cT228_scalar⟩
+lemma tab_pt_37_3 : ∃ h, pt (tableX 37 3) (tableY 37 3) h = ((4 + 3) * 4^37) • G := by
+  use cT228_curve; show pt (tableX 37 3) (tableY 37 3) cT228_curve = _; show pt cT228_x cT228_y cT228_curve = _; exact cT228_scalar
 lemma tab_38_0 : tableX 38 0 = cB230_x ∧ tableY 38 0 = cB230_y := by constructor <;> rfl
-lemma tab_pt_38_0 : ∃ h, pt (tableX 38 0) (tableY 38 0) h = ((4 + 0) * 4^38) • G :=
-  ⟨cB230_curve, by rw [tab_38_0.1, tab_38_0.2]; exact cB230_scalar⟩
+lemma tab_pt_38_0 : ∃ h, pt (tableX 38 0) (tableY 38 0) h = ((4 + 0) * 4^38) • G := by
+  use cB230_curve; show pt (tableX 38 0) (tableY 38 0) cB230_curve = _; show pt cB230_x cB230_y cB230_curve = _; exact cB230_scalar
 lemma tab_38_1 : tableX 38 1 = cT232_x ∧ tableY 38 1 = cT232_y := by constructor <;> rfl
-lemma tab_pt_38_1 : ∃ h, pt (tableX 38 1) (tableY 38 1) h = ((4 + 1) * 4^38) • G :=
-  ⟨cT232_curve, by rw [tab_38_1.1, tab_38_1.2]; exact cT232_scalar⟩
+lemma tab_pt_38_1 : ∃ h, pt (tableX 38 1) (tableY 38 1) h = ((4 + 1) * 4^38) • G := by
+  use cT232_curve; show pt (tableX 38 1) (tableY 38 1) cT232_curve = _; show pt cT232_x cT232_y cT232_curve = _; exact cT232_scalar
 lemma tab_38_2 : tableX 38 2 = cT233_x ∧ tableY 38 2 = cT233_y := by constructor <;> rfl
-lemma tab_pt_38_2 : ∃ h, pt (tableX 38 2) (tableY 38 2) h = ((4 + 2) * 4^38) • G :=
-  ⟨cT233_curve, by rw [tab_38_2.1, tab_38_2.2]; exact cT233_scalar⟩
+lemma tab_pt_38_2 : ∃ h, pt (tableX 38 2) (tableY 38 2) h = ((4 + 2) * 4^38) • G := by
+  use cT233_curve; show pt (tableX 38 2) (tableY 38 2) cT233_curve = _; show pt cT233_x cT233_y cT233_curve = _; exact cT233_scalar
 lemma tab_38_3 : tableX 38 3 = cT234_x ∧ tableY 38 3 = cT234_y := by constructor <;> rfl
-lemma tab_pt_38_3 : ∃ h, pt (tableX 38 3) (tableY 38 3) h = ((4 + 3) * 4^38) • G :=
-  ⟨cT234_curve, by rw [tab_38_3.1, tab_38_3.2]; exact cT234_scalar⟩
+lemma tab_pt_38_3 : ∃ h, pt (tableX 38 3) (tableY 38 3) h = ((4 + 3) * 4^38) • G := by
+  use cT234_curve; show pt (tableX 38 3) (tableY 38 3) cT234_curve = _; show pt cT234_x cT234_y cT234_curve = _; exact cT234_scalar
 lemma tab_39_0 : tableX 39 0 = cB236_x ∧ tableY 39 0 = cB236_y := by constructor <;> rfl
-lemma tab_pt_39_0 : ∃ h, pt (tableX 39 0) (tableY 39 0) h = ((4 + 0) * 4^39) • G :=
-  ⟨cB236_curve, by rw [tab_39_0.1, tab_39_0.2]; exact cB236_scalar⟩
+lemma tab_pt_39_0 : ∃ h, pt (tableX 39 0) (tableY 39 0) h = ((4 + 0) * 4^39) • G := by
+  use cB236_curve; show pt (tableX 39 0) (tableY 39 0) cB236_curve = _; show pt cB236_x cB236_y cB236_curve = _; exact cB236_scalar
 lemma tab_39_1 : tableX 39 1 = cT238_x ∧ tableY 39 1 = cT238_y := by constructor <;> rfl
-lemma tab_pt_39_1 : ∃ h, pt (tableX 39 1) (tableY 39 1) h = ((4 + 1) * 4^39) • G :=
-  ⟨cT238_curve, by rw [tab_39_1.1, tab_39_1.2]; exact cT238_scalar⟩
+lemma tab_pt_39_1 : ∃ h, pt (tableX 39 1) (tableY 39 1) h = ((4 + 1) * 4^39) • G := by
+  use cT238_curve; show pt (tableX 39 1) (tableY 39 1) cT238_curve = _; show pt cT238_x cT238_y cT238_curve = _; exact cT238_scalar
 lemma tab_39_2 : tableX 39 2 = cT239_x ∧ tableY 39 2 = cT239_y := by constructor <;> rfl
-lemma tab_pt_39_2 : ∃ h, pt (tableX 39 2) (tableY 39 2) h = ((4 + 2) * 4^39) • G :=
-  ⟨cT239_curve, by rw [tab_39_2.1, tab_39_2.2]; exact cT239_scalar⟩
+lemma tab_pt_39_2 : ∃ h, pt (tableX 39 2) (tableY 39 2) h = ((4 + 2) * 4^39) • G := by
+  use cT239_curve; show pt (tableX 39 2) (tableY 39 2) cT239_curve = _; show pt cT239_x cT239_y cT239_curve = _; exact cT239_scalar
 lemma tab_39_3 : tableX 39 3 = cT240_x ∧ tableY 39 3 = cT240_y := by constructor <;> rfl
-lemma tab_pt_39_3 : ∃ h, pt (tableX 39 3) (tableY 39 3) h = ((4 + 3) * 4^39) • G :=
-  ⟨cT240_curve, by rw [tab_39_3.1, tab_39_3.2]; exact cT240_scalar⟩
+lemma tab_pt_39_3 : ∃ h, pt (tableX 39 3) (tableY 39 3) h = ((4 + 3) * 4^39) • G := by
+  use cT240_curve; show pt (tableX 39 3) (tableY 39 3) cT240_curve = _; show pt cT240_x cT240_y cT240_curve = _; exact cT240_scalar
 lemma tab_40_0 : tableX 40 0 = cB242_x ∧ tableY 40 0 = cB242_y := by constructor <;> rfl
-lemma tab_pt_40_0 : ∃ h, pt (tableX 40 0) (tableY 40 0) h = ((4 + 0) * 4^40) • G :=
-  ⟨cB242_curve, by rw [tab_40_0.1, tab_40_0.2]; exact cB242_scalar⟩
+lemma tab_pt_40_0 : ∃ h, pt (tableX 40 0) (tableY 40 0) h = ((4 + 0) * 4^40) • G := by
+  use cB242_curve; show pt (tableX 40 0) (tableY 40 0) cB242_curve = _; show pt cB242_x cB242_y cB242_curve = _; exact cB242_scalar
 lemma tab_40_1 : tableX 40 1 = cT244_x ∧ tableY 40 1 = cT244_y := by constructor <;> rfl
-lemma tab_pt_40_1 : ∃ h, pt (tableX 40 1) (tableY 40 1) h = ((4 + 1) * 4^40) • G :=
-  ⟨cT244_curve, by rw [tab_40_1.1, tab_40_1.2]; exact cT244_scalar⟩
+lemma tab_pt_40_1 : ∃ h, pt (tableX 40 1) (tableY 40 1) h = ((4 + 1) * 4^40) • G := by
+  use cT244_curve; show pt (tableX 40 1) (tableY 40 1) cT244_curve = _; show pt cT244_x cT244_y cT244_curve = _; exact cT244_scalar
 lemma tab_40_2 : tableX 40 2 = cT245_x ∧ tableY 40 2 = cT245_y := by constructor <;> rfl
-lemma tab_pt_40_2 : ∃ h, pt (tableX 40 2) (tableY 40 2) h = ((4 + 2) * 4^40) • G :=
-  ⟨cT245_curve, by rw [tab_40_2.1, tab_40_2.2]; exact cT245_scalar⟩
+lemma tab_pt_40_2 : ∃ h, pt (tableX 40 2) (tableY 40 2) h = ((4 + 2) * 4^40) • G := by
+  use cT245_curve; show pt (tableX 40 2) (tableY 40 2) cT245_curve = _; show pt cT245_x cT245_y cT245_curve = _; exact cT245_scalar
 lemma tab_40_3 : tableX 40 3 = cT246_x ∧ tableY 40 3 = cT246_y := by constructor <;> rfl
-lemma tab_pt_40_3 : ∃ h, pt (tableX 40 3) (tableY 40 3) h = ((4 + 3) * 4^40) • G :=
-  ⟨cT246_curve, by rw [tab_40_3.1, tab_40_3.2]; exact cT246_scalar⟩
+lemma tab_pt_40_3 : ∃ h, pt (tableX 40 3) (tableY 40 3) h = ((4 + 3) * 4^40) • G := by
+  use cT246_curve; show pt (tableX 40 3) (tableY 40 3) cT246_curve = _; show pt cT246_x cT246_y cT246_curve = _; exact cT246_scalar
 lemma tab_41_0 : tableX 41 0 = cB248_x ∧ tableY 41 0 = cB248_y := by constructor <;> rfl
-lemma tab_pt_41_0 : ∃ h, pt (tableX 41 0) (tableY 41 0) h = ((4 + 0) * 4^41) • G :=
-  ⟨cB248_curve, by rw [tab_41_0.1, tab_41_0.2]; exact cB248_scalar⟩
+lemma tab_pt_41_0 : ∃ h, pt (tableX 41 0) (tableY 41 0) h = ((4 + 0) * 4^41) • G := by
+  use cB248_curve; show pt (tableX 41 0) (tableY 41 0) cB248_curve = _; show pt cB248_x cB248_y cB248_curve = _; exact cB248_scalar
 lemma tab_41_1 : tableX 41 1 = cT250_x ∧ tableY 41 1 = cT250_y := by constructor <;> rfl
-lemma tab_pt_41_1 : ∃ h, pt (tableX 41 1) (tableY 41 1) h = ((4 + 1) * 4^41) • G :=
-  ⟨cT250_curve, by rw [tab_41_1.1, tab_41_1.2]; exact cT250_scalar⟩
+lemma tab_pt_41_1 : ∃ h, pt (tableX 41 1) (tableY 41 1) h = ((4 + 1) * 4^41) • G := by
+  use cT250_curve; show pt (tableX 41 1) (tableY 41 1) cT250_curve = _; show pt cT250_x cT250_y cT250_curve = _; exact cT250_scalar
 lemma tab_41_2 : tableX 41 2 = cT251_x ∧ tableY 41 2 = cT251_y := by constructor <;> rfl
-lemma tab_pt_41_2 : ∃ h, pt (tableX 41 2) (tableY 41 2) h = ((4 + 2) * 4^41) • G :=
-  ⟨cT251_curve, by rw [tab_41_2.1, tab_41_2.2]; exact cT251_scalar⟩
+lemma tab_pt_41_2 : ∃ h, pt (tableX 41 2) (tableY 41 2) h = ((4 + 2) * 4^41) • G := by
+  use cT251_curve; show pt (tableX 41 2) (tableY 41 2) cT251_curve = _; show pt cT251_x cT251_y cT251_curve = _; exact cT251_scalar
 lemma tab_41_3 : tableX 41 3 = cT252_x ∧ tableY 41 3 = cT252_y := by constructor <;> rfl
-lemma tab_pt_41_3 : ∃ h, pt (tableX 41 3) (tableY 41 3) h = ((4 + 3) * 4^41) • G :=
-  ⟨cT252_curve, by rw [tab_41_3.1, tab_41_3.2]; exact cT252_scalar⟩
+lemma tab_pt_41_3 : ∃ h, pt (tableX 41 3) (tableY 41 3) h = ((4 + 3) * 4^41) • G := by
+  use cT252_curve; show pt (tableX 41 3) (tableY 41 3) cT252_curve = _; show pt cT252_x cT252_y cT252_curve = _; exact cT252_scalar
 lemma tab_42_0 : tableX 42 0 = cB254_x ∧ tableY 42 0 = cB254_y := by constructor <;> rfl
-lemma tab_pt_42_0 : ∃ h, pt (tableX 42 0) (tableY 42 0) h = ((4 + 0) * 4^42) • G :=
-  ⟨cB254_curve, by rw [tab_42_0.1, tab_42_0.2]; exact cB254_scalar⟩
+lemma tab_pt_42_0 : ∃ h, pt (tableX 42 0) (tableY 42 0) h = ((4 + 0) * 4^42) • G := by
+  use cB254_curve; show pt (tableX 42 0) (tableY 42 0) cB254_curve = _; show pt cB254_x cB254_y cB254_curve = _; exact cB254_scalar
 lemma tab_42_1 : tableX 42 1 = cT256_x ∧ tableY 42 1 = cT256_y := by constructor <;> rfl
-lemma tab_pt_42_1 : ∃ h, pt (tableX 42 1) (tableY 42 1) h = ((4 + 1) * 4^42) • G :=
-  ⟨cT256_curve, by rw [tab_42_1.1, tab_42_1.2]; exact cT256_scalar⟩
+lemma tab_pt_42_1 : ∃ h, pt (tableX 42 1) (tableY 42 1) h = ((4 + 1) * 4^42) • G := by
+  use cT256_curve; show pt (tableX 42 1) (tableY 42 1) cT256_curve = _; show pt cT256_x cT256_y cT256_curve = _; exact cT256_scalar
 lemma tab_42_2 : tableX 42 2 = cT257_x ∧ tableY 42 2 = cT257_y := by constructor <;> rfl
-lemma tab_pt_42_2 : ∃ h, pt (tableX 42 2) (tableY 42 2) h = ((4 + 2) * 4^42) • G :=
-  ⟨cT257_curve, by rw [tab_42_2.1, tab_42_2.2]; exact cT257_scalar⟩
+lemma tab_pt_42_2 : ∃ h, pt (tableX 42 2) (tableY 42 2) h = ((4 + 2) * 4^42) • G := by
+  use cT257_curve; show pt (tableX 42 2) (tableY 42 2) cT257_curve = _; show pt cT257_x cT257_y cT257_curve = _; exact cT257_scalar
 lemma tab_42_3 : tableX 42 3 = cT258_x ∧ tableY 42 3 = cT258_y := by constructor <;> rfl
-lemma tab_pt_42_3 : ∃ h, pt (tableX 42 3) (tableY 42 3) h = ((4 + 3) * 4^42) • G :=
-  ⟨cT258_curve, by rw [tab_42_3.1, tab_42_3.2]; exact cT258_scalar⟩
+lemma tab_pt_42_3 : ∃ h, pt (tableX 42 3) (tableY 42 3) h = ((4 + 3) * 4^42) • G := by
+  use cT258_curve; show pt (tableX 42 3) (tableY 42 3) cT258_curve = _; show pt cT258_x cT258_y cT258_curve = _; exact cT258_scalar
 end Solution.Projected
