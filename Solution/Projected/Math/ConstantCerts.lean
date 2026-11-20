@@ -13,7 +13,3 @@ open Challenge.Specs.ECDSAP256
 -- small_multiples_ne_zero is imported from SmallMultiples
 
 end Solution.Projected
-
-#print axioms Solution.Projected.table_pt
-#print axioms Solution.Projected.shift_pt
-#print axioms Solution.Projected.small_multiples_ne_zero

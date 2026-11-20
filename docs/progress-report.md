@@ -1,6 +1,6 @@
 # M2 progress report — P-256 constant certificates
 
-Updated 2026-11-20. Branch: `claude-ecdsa-plan`. **All three public M2 theorems are now independently verified in their standalone modules.** S5's full 512-entry `table_pt` builds, reproduces and passes its axiom audit. The S5 retry's strict verdict is blocked on preservation of the first attempt's audit driver, not on the mathematics. S6 has not been run by the orchestrator; the aggregate M2 acceptance check is outstanding. See the [S5 results](#20-november--s5-results); earlier entries describe their respective snapshots.
+Updated 2026-11-20. Branch: `claude-ecdsa-plan`. **M2 accepted.** All three required theorems passed independent axiom checks through `Solution.Projected.Math.ConstantCerts`, with zero sorries in the M2 sources. Rebuilding the aggregate from fresh M2 certificates took **2m39.114s** with prerequisites cached, below the 15-minute target. See the [S6 results and final totals](#s6-results-and-final-totals). Earlier entries and their workflow verdicts describe their respective snapshots. The full ECDSA circuit proof is still open.
 
 ## Work reported on 17 November
 
@@ -406,3 +406,62 @@ The retry generalized the pilot proof in the maintained generator to all entries
 No step `sorry` or forbidden proof constructs were found. No remaining `AGENT-SORRY` markers were found in project Lean sources (excluding cache and experiment evidence). All versionable changes were within the step's allowlist. **Strict workflow failure:** `.lean-agent/S5/Audit.lean` was present before the retry and absent afterwards, contrary to the no-changes-to-prior-evidence rule. The retry's allowed `.lean-agent/S5-retry/Audit.lean` has precisely the missing file's SHA-256, `9b9ecfd15c19b6f70bbe12c0d325444c2cdb0a94d9558784272c253873c4676e`. No proof repair is needed; no third attempt was made. The prover also reported building `ConstantCerts`, contrary to the S5 brief; its aggregate claims are not accepted as an independent S6 build or audit.
 
 **Cumulative totals:** five numbered steps attempted, **2 done, 0 partial, 3 blocked** by their historical strict verdicts, including verified mathematical results with workflow failures. Eight numbered attempts, three retries, three overruns. Numbered steps account for 17,285 s (4h48m05s); with the two supplemental assignments, total prover time is **18,145 s (5h02m25s)**. **S5 was the slowest step** at 6,880 s (1h54m40s) across its two attempts. Times exclude setup and independent verification. Evidence is under `.lean-agent/S5/` and `S5-retry/` (including `checks.txt`, all per-target timings, the source/manifest review and verdicts). S6 has not started. A clean full-M2 time and the overall sorry-free, axiom-clean circuit goal remain unverified.
+
+## S6 results and final totals
+
+**S6 — done, 0 sorries, 481 s (8m01s), no retry.** On 20 November the user authorized proceeding to S6 with the earlier verdicts preserved. The prover moved three diagnostic prints out of the production aggregate and into `.lean-agent/S6/Audit.lean`. Before/after hashes show that `Solution/Projected/Math/ConstantCerts.lean` was the only versionable file changed during the step. The pre-existing `opencode.json`, earlier experiment evidence and frozen step list were preserved.
+
+### Independent M2 acceptance checks
+
+| Check | Result | Wall time |
+|---|---|---:|
+| `lake build Solution.Projected.Math.ConstantCerts` in the working tree | Passed, cached | 2.419 s |
+| `lake env lean .lean-agent/S6/Audit.lean` | All three expected roots passed | 2.451 s |
+| Regenerate in an empty staging directory; `diff -qr` against working sources | All 32 generated files byte-identical | 0.094 s + 0.003 s |
+| `lake --no-cache build Solution.Projected.Math.ConstantCerts` in an isolated workspace | **37 modules compiled from source; met <15 min target** | **159.114 s** |
+| Run the aggregate audit against those fresh artifacts | Same three roots and axiom lists | 2.485 s |
+
+The timed rebuild started without certificate artifacts. Lake compiled all 13 affine-chain chunks, 12 table modules, six small-multiple modules, `Constants`, `CertSteps`, the three public theorem modules and `ConstantCerts`. The pinned external packages and non-M2 project prerequisites were already built. Artifact restoration and cache downloads were disabled; `LEAN_NUM_THREADS=4`. The 159.114 s is aggregate build wall time including parallel jobs, not their summed CPU time or a full repository bootstrap. The warm check alone does not establish the performance target.
+
+The driver imports only `Solution.Projected.Math.ConstantCerts`. Both the warm and fresh runs printed:
+
+```text
+'Solution.Projected.table_pt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Solution.Projected.shift_pt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Solution.Projected.small_multiples_ne_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+Source review confirms the [table theorem](../Solution/Projected/Math/TableCert.lean#L23) covers all 512 `(i,d)` pairs for the actual circuit coordinates and unreduced scalar; the [shift theorem](../Solution/Projected/Math/ShiftCert.lean#L12) uses the planned scalar and generator; the [small-multiple theorem](../Solution/Projected/Math/SmallMultiples.lean#L4245) covers every `m` from 1 through 4199 with `N_H = 1050`. None has extra hypotheses. The legacy generated `CertsFinal.lean` still contains an older assembly; regeneration reproduces it, but it is outside the aggregate import path and S6 did not compile or certify it.
+
+**Remaining `AGENT-SORRY` in project Lean sources: none found.** M2's source scans also found no `sorry`, `native_decide`, `axiom` or `implemented_by`. Lake replayed the existing `honestHint` template warning from `Challenge/Instances/ECDSA_P256_Projected/Interface.lean:23`; no audited M2 root depends on `sorryAx`. M2 now supplies the table and shift facts needed by C1 and the small-multiple fact needed by M3. Neither consumer, nor full-circuit soundness or completeness, was verified by S6.
+
+### Experiment totals (historical verdicts preserved)
+
+| Step | Final verdict | Sorries in scope | Prover wall time (end − start) | Retried | Over time limit |
+|---|---|---:|---|---|---|
+| S1 — K modules | done | 0 | 42m55s | No | Yes, 12m55s |
+| S2 — small multiples | blocked (file scope; proof verified) | 0 | 53m05s + 13m03s = 1h06m08s | Yes | First by 8m05s |
+| S3 — shift | done | 0 | 15m01s | No | No |
+| S4 — table pilot | blocked (generator mismatch on retry) | 0 | 37m32s + 11m49s = 49m21s | Yes | No |
+| Supplemental — generator repair | blocked (working-copy preservation) | 0 | 13m26s | No | No |
+| Supplemental — pilot restoration | done | 0 | 54s | No | No |
+| S5 — full table | blocked (prior audit file lost; proof verified) | 0 | 1h47m30s + 7m10s = 1h54m40s | Yes | First by 1h02m30s |
+| S6 — aggregate M2 | **done** | **0** | **8m01s** | No | No |
+
+Six numbered steps: **3 done, 0 partial, 3 historically blocked**; nine numbered attempts, three retries, three overruns. Numbered prover time: **17,766 s (4h56m06s)**. Including both supplemental assignments: **18,626 s (5h10m26s)** across eleven attempts. **S5 was the slowest step** (1h54m40s including retry). These totals exclude setup and independent checks. The workflow verdicts record what happened on those attempts; the fresh aggregate build and audit establish the final mathematical result.
+
+### S6 environment (`.lean-agent/env.txt`)
+
+```text
+Setup check: PASS — lean-prover replied OK without error
+Setup session: ses_e06f07f31ffeuxyaDrS7MCCQsY
+Configured lean-prover model: mistral/mistral-medium-2604#high (from ~/.config/opencode/agents/lean-prover.md)
+date -u: Fri Nov 20 01:05:11 PM UTC 2026
+git rev-parse HEAD: 02055d2f1bf0719205c8d22db340a13506d4fd1a
+Branch: claude-ecdsa-plan
+sha256sum: df33b2c0d3c37965e51f1275d7862746a6e4514ec6553bb61567bd54d4f90118  docs/ecdsa-proof-plan.md
+cat lean-toolchain: leanprover/lean4:v4.34.0
+opencode --version: opencode v2.0.24
+```
+
+Evidence: `.lean-agent/S6/` contains the exact prompt, returned report, start/end timestamps, before/after hashes, audit driver, independent check logs, source review and verdict. `verify.py` records the isolation procedure; `stage-before.txt`, `stage-built.txt`, `m2-clean-build.txt` and `fresh-audit.txt` record what was compiled and checked. Keep the ignored evidence directory with the [progress report](./progress-report.md) to reproduce the experiment.
