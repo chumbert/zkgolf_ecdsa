@@ -1,4 +1,6 @@
 import Solution.Projected.Certs.CertsFinal
+import Solution.Projected.Math.ShiftCert
+import Solution.Projected.Math.SmallMultiples
 
 /-! P-256 constant certificates: the fixed-base table, the shift point, and
 small multiples of G, assembled from the generated Certs modules. -/
@@ -6,18 +8,14 @@ namespace Solution.Projected
 
 open Challenge.Specs.ECDSAP256
 
-/-- Offset-candidate count: at least the catalogue size + 1 (1040). -/
-def N_H : ℕ := 1050
+-- N_H and small_multiples_ne_zero are now imported from SmallMultiples
+-- (previously redeclared here)
 
 theorem table_pt (i : Fin 128) (d : Fin 4) :
     ∃ h, pt (tableX i d) (tableY i d) h = ((4 + d.val) * 4^i.val) • G :=
   table_pt_aux i d
 
-theorem shift_pt : ∃ h, pt shiftX shiftY h = (4 * ((4^128 - 1) / 3)) • G :=
-  shift_pt_aux
-
-theorem small_multiples_ne_zero : ∀ m, 0 < m → m < 4 * N_H → m • G ≠ 0 :=
-  small_multiples_ne_zero_aux
+-- shift_pt is imported from ShiftCert (not redeclared here)
 
 end Solution.Projected
 
